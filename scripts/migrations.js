@@ -29,8 +29,18 @@ function dropLegacyMyHuntLeftoverColumns(db) {
     }
 }
 
+// Adds the manually-entered preference-points field to an already-existing
+// MyHuntPlans table (new installs get it straight from schema.sql's CREATE).
+function addMyHuntPlansPreferencePoints(db) {
+    if (!hasTable(db, "MyHuntPlans")) return;
+    if (hasColumn(db, "MyHuntPlans", "CurrentPreferencePoints")) return;
+    db.exec(`ALTER TABLE MyHuntPlans ADD COLUMN CurrentPreferencePoints INTEGER`);
+    console.log("Migration: added MyHuntPlans.CurrentPreferencePoints.");
+}
+
 function runMigrations(db) {
     dropLegacyMyHuntLeftoverColumns(db);
+    addMyHuntPlansPreferencePoints(db);
 }
 
 module.exports = { runMigrations };

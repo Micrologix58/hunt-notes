@@ -84,6 +84,13 @@ CREATE TABLE IF NOT EXISTS MyHuntPlans (
     IsTargeted   INTEGER NOT NULL DEFAULT 0 CHECK (IsTargeted IN (0, 1)),
     HasApplied   INTEGER NOT NULL DEFAULT 0 CHECK (HasApplied IN (0, 1)),
 
+    -- Manually entered -- CPW doesn't expose a lookup API, so this is
+    -- whatever the user's last results letter/account page told them.
+    -- Preference points are a primary-draw-only concept (the secondary
+    -- draw doesn't use or award them), which is why it lives up here with
+    -- Target/Applied rather than inside either draw section below.
+    CurrentPreferencePoints INTEGER,
+
     -- Primary draw. CPW allows up to 4 ranked choices per application --
     -- this only tracks the first two.
     PrimaryChoice1HuntCode TEXT,

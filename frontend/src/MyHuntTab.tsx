@@ -216,6 +216,25 @@ export function MyHuntTab() {
                                 </td>
                             ))}
                         </tr>
+                        <tr style={{ borderBottom: "1px solid #1f1f1f" }}>
+                            <td style={tdLabelStyle}>Current Pref. Points</td>
+                            {SPECIES.map(s => (
+                                <td key={s.key} style={tdStyle}>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        style={{ ...inputStyle, width: 90 }}
+                                        value={plans[s.key].currentPreferencePoints ?? ""}
+                                        placeholder="e.g. 5"
+                                        onChange={e => {
+                                            const raw = e.target.value;
+                                            const parsed = raw === "" ? null : parseInt(raw, 10);
+                                            updateField(s.key, "currentPreferencePoints", Number.isNaN(parsed) ? null : parsed);
+                                        }}
+                                    />
+                                </td>
+                            ))}
+                        </tr>
 
                         <tr><td colSpan={SPECIES.length + 1} style={groupRowStyle}>Primary Draw</td></tr>
                         <tr>

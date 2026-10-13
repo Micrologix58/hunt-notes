@@ -89,6 +89,7 @@ function defaultMyHuntPlan(seasonYear, speciesKey) {
     return {
         seasonYear, speciesKey,
         isTargeted: false, hasApplied: false,
+        currentPreferencePoints: null,
         primaryChoice1HuntCode: "", primaryChoice2HuntCode: "",
         primaryDrawResult: "pending", primaryDrawnHuntCode: "",
         secondaryChoiceHuntCode: "",
@@ -104,6 +105,7 @@ function rowToMyHuntPlan(row) {
         speciesKey: row.SpeciesKey,
         isTargeted: !!row.IsTargeted,
         hasApplied: !!row.HasApplied,
+        currentPreferencePoints: row.CurrentPreferencePoints,
         primaryChoice1HuntCode: row.PrimaryChoice1HuntCode ?? "",
         primaryChoice2HuntCode: row.PrimaryChoice2HuntCode ?? "",
         primaryDrawResult: row.PrimaryDrawResult,
@@ -131,12 +133,12 @@ const getMyHuntPlanStmt = db.prepare(`SELECT * FROM MyHuntPlans WHERE SeasonYear
 
 const upsertMyHuntPlanStmt = db.prepare(`
     INSERT INTO MyHuntPlans (
-        SeasonYear, SpeciesKey, IsTargeted, HasApplied,
+        SeasonYear, SpeciesKey, IsTargeted, HasApplied, CurrentPreferencePoints,
         PrimaryChoice1HuntCode, PrimaryChoice2HuntCode, PrimaryDrawResult, PrimaryDrawnHuntCode,
         SecondaryChoiceHuntCode, SecondaryDrawResult, SecondaryDrawnHuntCode,
         Notes, UpdatedAt
     ) VALUES (
-        @seasonYear, @speciesKey, @isTargeted, @hasApplied,
+        @seasonYear, @speciesKey, @isTargeted, @hasApplied, @currentPreferencePoints,
         @primaryChoice1HuntCode, @primaryChoice2HuntCode, @primaryDrawResult, @primaryDrawnHuntCode,
         @secondaryChoiceHuntCode, @secondaryDrawResult, @secondaryDrawnHuntCode,
         @notes, CURRENT_TIMESTAMP
@@ -144,6 +146,7 @@ const upsertMyHuntPlanStmt = db.prepare(`
     ON CONFLICT (SeasonYear, SpeciesKey) DO UPDATE SET
         IsTargeted = excluded.IsTargeted,
         HasApplied = excluded.HasApplied,
+        CurrentPreferencePoints = excluded.CurrentPreferencePoints,
         PrimaryChoice1HuntCode = excluded.PrimaryChoice1HuntCode,
         PrimaryChoice2HuntCode = excluded.PrimaryChoice2HuntCode,
         PrimaryDrawResult = excluded.PrimaryDrawResult,
@@ -212,6 +215,9 @@ app.put("/api/my-hunt/plans/:speciesKey", (req, res) => {
         if (body.secondaryDrawResult && !DRAW_RESULTS.includes(body.secondaryDrawResult)) {
             return res.status(400).json({ success: false, error: `secondaryDrawResult must be one of: ${DRAW_RESULTS.join(", ")}` });
         }
+        if (body.currentPreferencePoints != null && !Number.isInteger(body.currentPreferencePoints)) {
+            return res.status(400).json({ success: false, error: "currentPreferencePoints must be an integer or null" });
+        }
 
         const defaults = defaultMyHuntPlan(seasonYear, speciesKey);
         const merged = { ...defaults, ...body, seasonYear, speciesKey };
@@ -221,6 +227,7 @@ app.put("/api/my-hunt/plans/:speciesKey", (req, res) => {
             speciesKey,
             isTargeted: merged.isTargeted ? 1 : 0,
             hasApplied: merged.hasApplied ? 1 : 0,
+            currentPreferencePoints: merged.currentPreferencePoints,
             primaryChoice1HuntCode: merged.primaryChoice1HuntCode || null,
             primaryChoice2HuntCode: merged.primaryChoice2HuntCode || null,
             primaryDrawResult: merged.primaryDrawResult,

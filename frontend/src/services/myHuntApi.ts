@@ -14,6 +14,7 @@ export type MyHuntPlan = {
     speciesKey: "deer" | "elk" | "pronghorn";
     isTargeted: boolean;
     hasApplied: boolean;
+    currentPreferencePoints: number | null;
 
     primaryChoice1HuntCode: string;
     primaryChoice2HuntCode: string;

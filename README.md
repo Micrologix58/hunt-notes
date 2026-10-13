@@ -119,6 +119,12 @@ on existing ones.
   purchases). Primary Draw and Secondary Draw stay single-valued on
   `MyHuntPlans`, since CPW really does award at most one license per
   species per draw.
+- **Current Pref. Points is manually entered, not computed.** CPW
+  doesn't expose a lookup API for this, so it's just a plain editable
+  number -- whatever your last results letter or account page said.
+  It sits with Target/Applied rather than inside either draw section,
+  since preference points are a primary-draw-only concept (the
+  secondary draw doesn't use or award them).
 - **Access tab data was hand-transcribed from a scanned PDF.** The
   "2026 Colorado State Recreation Lands" brochure has no text layer at
   all (85 pages, every one an image) -- there was nothing to run
