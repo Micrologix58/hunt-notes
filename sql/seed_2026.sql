@@ -10,16 +10,26 @@ DELETE FROM DrawDates WHERE SeasonYear = 2026;
 DELETE FROM BigGameSeasonDates WHERE SeasonYear = 2026;
 DELETE FROM SmallGameSeasonDates WHERE SeasonYear = 2026;
 
-INSERT OR IGNORE INTO Species (SpeciesKey, DisplayName, Category, SortOrder) VALUES
-    ('deer',              'Deer',               'big_game',   1),
-    ('elk',               'Elk',                'big_game',   2),
-    ('pronghorn',         'Pronghorn',          'big_game',   3),
+-- One-time rename (deer split into Mule Deer + Whitetail columns): if an
+-- older 'deer' row exists, fold it into 'mule_deer' so its SpeciesID (and
+-- any FK-linked rows) carry over instead of orphaning.
+UPDATE Species SET SpeciesKey = 'mule_deer' WHERE SpeciesKey = 'deer';
+
+INSERT INTO Species (SpeciesKey, DisplayName, Category, SortOrder) VALUES
+    ('mule_deer',         'Mule Deer',          'big_game',   1),
+    ('whitetail_deer',    'Whitetail',          'big_game',   2),
+    ('elk',               'Elk',                'big_game',   3),
+    ('pronghorn',         'Pronghorn',          'big_game',   4),
     ('rabbit',            'Rabbit',             'small_game', 1),
     ('dove',              'Dove',               'small_game', 2),
     ('blue_grouse',       'Blue Grouse',        'small_game', 3),
     ('sage_grouse',       'Sage Grouse',        'small_game', 4),
     ('sharptail_grouse',  'Sharp-Tail Grouse',  'small_game', 5),
-    ('pheasant',          'Pheasant',           'small_game', 6);
+    ('pheasant',          'Pheasant',           'small_game', 6)
+ON CONFLICT(SpeciesKey) DO UPDATE SET
+    DisplayName = excluded.DisplayName,
+    Category    = excluded.Category,
+    SortOrder   = excluded.SortOrder;
 
 -- ─── Draw Dates (shared across deer/elk/pronghorn -- see schema.sql note) ───
 
@@ -43,13 +53,31 @@ INSERT INTO DrawDates (SeasonYear, DrawType, EventKey, EventLabel, DisplayText, 
 -- ─── Big Game Season Dates ───
 
 INSERT INTO BigGameSeasonDates (SeasonYear, SpeciesID, MethodKey, MethodLabel, DisplayText, SortOrder, Notes) VALUES
-    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'deer'), 'archery',      'Archery',       'Sept. 2-30*',      1, '*Unless otherwise noted in the hunt code tables.'),
-    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'deer'), 'muzzleloader', 'Muzzleloader',  'Sept. 12-20*',     2, '*Unless otherwise noted in the hunt code tables.'),
-    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'deer'), 'rifle_1',      'First Rifle',   'Oct. 14-18**',     3, '**In select GMUs. See the rifle hunt code tables.'),
-    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'deer'), 'rifle_2',      'Second Rifle',  'Oct. 24-Nov. 1',   4, NULL),
-    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'deer'), 'rifle_3',      'Third Rifle',   'Nov. 7-15',        5, NULL),
-    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'deer'), 'rifle_4',      'Fourth Rifle',  'Nov. 18-22',       6, NULL),
-    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'deer'), 'plains_rifle', 'Plains Rifle',  'Oct. 24-Nov. 3',   7, 'Deer only.'),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'mule_deer'), 'archery',      'Archery',       'Sept. 2-30*',      1, '*Unless otherwise noted in the hunt code tables.'),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'mule_deer'), 'muzzleloader', 'Muzzleloader',  'Sept. 12-20*',     2, '*Unless otherwise noted in the hunt code tables.'),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'mule_deer'), 'rifle_1',      'First Rifle',   'Oct. 14-18**',     3, '**In select GMUs. See the rifle hunt code tables.'),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'mule_deer'), 'rifle_2',      'Second Rifle',  'Oct. 24-Nov. 1',   4, NULL),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'mule_deer'), 'rifle_3',      'Third Rifle',   'Nov. 7-15',        5, NULL),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'mule_deer'), 'rifle_4',      'Fourth Rifle',  'Nov. 18-22',       6, NULL),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'mule_deer'), 'plains_rifle', 'Plains Rifle',  'Oct. 24-Nov. 3',   7, 'Deer only.'),
+
+    -- Whitetail season dates vary significantly by GMU (unlike mule deer's
+    -- fairly uniform statewide season), so there's no single "statewide
+    -- whitetail" date to show. These are GMU 103 (Plains) as a
+    -- representative eastern-plains example, per hunt code tables pages
+    -- 24 (archery), 26 (muzzleloader) and 30 (rifle).
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'whitetail_deer'), 'archery', 'Archery',
+        'Oct. 1-23' || char(10) || 'Nov. 4-30' || char(10) || 'Dec. 15-31', 1,
+        'GMU 103 (Plains) example -- hunt code D-E-103-O1-A, List A. Three split season windows; varies by unit.'),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'whitetail_deer'), 'muzzleloader', 'Muzzleloader',
+        'Oct. 10-18', 2,
+        'GMU 103 (Plains) example -- hunt codes D-M/D-F-103-O2-M, List A.'),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'whitetail_deer'), 'plains_rifle', 'Plains Rifle',
+        'Oct. 24-Nov. 3', 3,
+        'GMU 103 (Plains) example -- hunt codes D-M/D-F-103-O1-R, List A.'),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'whitetail_deer'), 'late_rifle', 'Late Rifle',
+        'Dec. 1-14', 4,
+        'GMU 103 (Plains) example -- hunt codes D-M/D-F-103-L1-R, List A.'),
 
     (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'elk'), 'archery',      'Archery',       'Sept. 2-30',       1, NULL),
     (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'elk'), 'muzzleloader', 'Muzzleloader',  'Sept. 12-20',      2, NULL),

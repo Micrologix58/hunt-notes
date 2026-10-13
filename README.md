@@ -63,3 +63,10 @@ year (usually Feb/March). To refresh:
   matter for actually applying.
 - **General/firearm seasons only** -- falconry-specific season dates
   (which differ for a few species) aren't included.
+- **Whitetail uses GMU 103 (Plains) as a representative example.**
+  Unlike mule deer's fairly uniform statewide season, whitetail dates
+  vary a lot by unit, so there's no single "statewide whitetail" date
+  to show -- the Whitetail column is seeded from one eastern-plains
+  unit's hunt codes (brochure pages 24/26/30) rather than a brochure
+  summary table. Swap in a different unit's dates in `seed_2026.sql`
+  if a different example area is more useful to you.

@@ -21,6 +21,7 @@ const METHOD_ROWS: { key: string; label: string }[] = [
     { key: "rifle_3", label: "Third Rifle" },
     { key: "rifle_4", label: "Fourth Rifle" },
     { key: "plains_rifle", label: "Plains Rifle" },
+    { key: "late_rifle", label: "Late Rifle" },
 ];
 
 const DRAW_EVENT_ROWS: { key: string; label: string }[] = [
@@ -50,7 +51,7 @@ const groupRowStyle: React.CSSProperties = {
     letterSpacing: "0.04em", paddingTop: 14, paddingBottom: 4,
 };
 const tdLabelStyle: React.CSSProperties = { padding: "4px 10px", color: "#94a3b8", whiteSpace: "nowrap" };
-const tdStyle: React.CSSProperties = { padding: "4px 10px", color: "#e2e8f0" };
+const tdStyle: React.CSSProperties = { padding: "4px 10px", color: "#e2e8f0", whiteSpace: "pre-line" };
 
 function DrawSection({ drawType, title, rows, speciesCols }: {
     drawType: "primary" | "secondary";
