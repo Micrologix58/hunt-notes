@@ -31,13 +31,15 @@ export async function fetchAccessAreaSpeciesList(): Promise<string[]> {
     return json.data as string[];
 }
 
-export async function saveAccessAreaNotes(id: number, notes: string): Promise<AccessArea> {
-    const res = await fetch(`/api/access-areas/${id}/notes`, {
+// Notes and campingAllowed are the only user-editable fields -- pass just
+// the one that changed (the other keeps its current value server-side).
+export async function saveAccessArea(id: number, fields: Partial<Pick<AccessArea, "notes" | "campingAllowed">>): Promise<AccessArea> {
+    const res = await fetch(`/api/access-areas/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify(fields),
     });
     const json = await res.json();
-    if (!json.success) throw new Error(json.error || "Failed to save notes");
+    if (!json.success) throw new Error(json.error || "Failed to save");
     return json.data as AccessArea;
 }

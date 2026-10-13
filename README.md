@@ -134,10 +134,14 @@ on existing ones.
   distance figure -- `DistanceFromDenverMiles` is a rounded (nearest 5
   mi) road-distance estimate from the referenced town/highway, good
   enough for "is this a day trip" planning but not precise.
-- **Camping reflects the brochure's own text**, not a design choice:
-  SWA/STL camping is prohibited by default unless a property's
-  Restrictions explicitly say otherwise (sometimes narrowly, e.g. "by
-  licensed hunters during big-game season +/-3 days only").
+- **Camping starts from the brochure's own text, but is user-editable.**
+  It's seeded prohibited-by-default unless a property's Restrictions
+  explicitly say otherwise (sometimes narrowly, e.g. "by licensed
+  hunters during big-game season +/-3 days only"), same as Notes --
+  the brochure's text can be stale, wrong, or just not worth tracking
+  for a day-access-only property, so the checkbox is yours to correct
+  as you research. It saves immediately on click (no debounce, unlike
+  Notes), since a checkbox click is already one deliberate edit.
 - **Access area data is a one-time import, not part of
   `seed_2026.sql`'s yearly reseed.** `AccessAreas`/`AccessAreaSpecies`
   have their own unique constraints and their own script

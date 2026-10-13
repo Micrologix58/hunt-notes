@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchAccessAreas, fetchAccessAreaSpeciesList, saveAccessAreaNotes, type AccessArea } from "./services/accessAreaApi";
+import { fetchAccessAreas, fetchAccessAreaSpeciesList, saveAccessArea, type AccessArea } from "./services/accessAreaApi";
 
 type SortMode = "gmu" | "distance" | "species";
 type TypeFilter = "all" | "SWA" | "STL";
@@ -53,15 +53,21 @@ export function AccessTab() {
             .catch(err => setError(err instanceof Error ? err.message : "Failed to load"));
     }, []);
 
-    const updateNotes = useCallback((id: number, notes: string) => {
-        setAreas(prev => prev ? prev.map(a => a.id === id ? { ...a, notes } : a) : prev);
+    // Notes and campingAllowed are the only editable fields here (everything
+    // else on a row is brochure-sourced). Debounced per-row autosave, same
+    // pattern as the rest of the app -- but the checkbox saves immediately
+    // (no debounce) since a click is already a discrete, deliberate edit.
+    const updateField = useCallback(<K extends "notes" | "campingAllowed">(id: number, field: K, value: AccessArea[K], immediate = false) => {
+        setAreas(prev => prev ? prev.map(a => a.id === id ? { ...a, [field]: value } : a) : prev);
         setStatus(s => ({ ...s, [id]: "saving" }));
-        if (debounceTimers.current[id]) clearTimeout(debounceTimers.current[id]);
-        debounceTimers.current[id] = setTimeout(() => {
-            saveAccessAreaNotes(id, notes)
+        const save = () => {
+            saveAccessArea(id, { [field]: value })
                 .then(() => setStatus(s => ({ ...s, [id]: "saved" })))
                 .catch(() => setStatus(s => ({ ...s, [id]: "error" })));
-        }, 600);
+        };
+        if (debounceTimers.current[id]) clearTimeout(debounceTimers.current[id]);
+        if (immediate) save();
+        else debounceTimers.current[id] = setTimeout(save, 600);
     }, []);
 
     const visibleAreas = useMemo(() => {
@@ -91,7 +97,7 @@ export function AccessTab() {
                 <span style={{ color: "#64748b", fontSize: 12 }}>{visibleAreas.length} of {areas.length} properties</span>
             </div>
             <div style={{ color: "#64748b", fontSize: 12, marginBottom: 14 }}>
-                Public hunting-access properties, transcribed from the CPW State Recreation Lands brochure. Sort or filter to find areas that support a given species, then log what you find in Notes.
+                Public hunting-access properties, transcribed from the CPW State Recreation Lands brochure. Sort or filter to find areas that support a given species. Camping and Notes are yours to edit as you research -- Camping starts from the brochure's text but may not matter for a day-access spot, or may need correcting.
             </div>
 
             <div style={controlsRowStyle}>
@@ -152,14 +158,18 @@ export function AccessTab() {
                                     <td style={tdStyle}>{a.recreation || "—"}</td>
                                     <td style={tdStyle}>{a.facilities || "—"}</td>
                                     <td style={{ ...tdStyle, textAlign: "center" }}>
-                                        <input type="checkbox" checked={a.campingAllowed} disabled readOnly />
+                                        <input
+                                            type="checkbox"
+                                            checked={a.campingAllowed}
+                                            onChange={e => updateField(a.id, "campingAllowed", e.target.checked, true)}
+                                        />
                                     </td>
                                     <td style={tdStyle}>
                                         <input
                                             style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
                                             value={a.notes}
                                             placeholder="Restrictions/issues you find…"
-                                            onChange={e => updateNotes(a.id, e.target.value)}
+                                            onChange={e => updateField(a.id, "notes", e.target.value)}
                                         />
                                         {st !== "idle" && (
                                             <span style={{ fontSize: 10, color: st === "error" ? "#ef4444" : "#64748b" }}>

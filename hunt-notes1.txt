@@ -69,3 +69,29 @@ I verified this against your exact example end-to-end (filled both tags, confirm
 
 One thing I didn't change: Primary/Secondary Draw are still single-valued, since that matches the actual "one license per species per draw" rule. If you've ever seen CPW award more than one license from a single draw for the same species, let me know and I'll generalize those too — but I don't believe that happens.
 
+Confirmed: all 85 pages are scanned images with no text layer — this is a photographed/scanned PDF, not born-digital. I'll need to render pages as images and read them visually (OCR via vision). Let me get a renderer that doesn't depend on the missing pdftoppm.
+
+Rendering works. Let's look at the first few pages to understand the document's structure (TOC, how SWA/STL entries are laid out).
+
+  Read 1 file
+
+Confirmed — this is the CPW State Recreation Lands guide (State Fish Units, SWAs, State Trust Lands, State Parks). Let's look at a few more pages to understand the entry layout.
+
+  Read 6 files, ran 3 shell commands
+
+This is a large, image-only PDF (85 pages, no text layer) — I'll need to read each page visually. Let me render the full SWA (printed pages 4–30) and STL (printed pages 32–56) sections now, then work through them systematically.
+
+Summary: Access tab is live
+
+What it does: A single sortable/filterable table of all 633 public hunting-access properties in Colorado — 227 State Wildlife Areas + 406 State Trust Lands, covering every page of both brochure sections. Search by name/county, filter by Type (SWA/STL) and Species, sort by GMU, Distance, or Species exactly as you asked. Each row has Name, Type, County, GMU(s), Distance from Denver, Acres, Species, Recreation, Facilities, a Camping checkbox, and an editable Notes field that autosaves.
+
+How I got the data: The brochure PDF turned out to have zero text layer — every one of its 85 pages is a scanned image, so pdftotext returned nothing. I rendered each page and read it visually, transcribing every property by hand into Docs/extraction/access_areas.jsonl, then loaded it via an idempotent import script. I only included properties where the brochure explicitly lists a "Hunting:" field — pure fishing/wildlife-viewing-only parcels are left out, since your stated goal is hunting access.
+
+Worth knowing:
+- Distance from Denver is estimated, not brochure data — CPW gives turn-by-turn directions instead, so I computed road-distance from the referenced town, rounded to the nearest 5 mi. Good for "is this a day trip" planning, not precise.
+- Camping reflects the brochure's own restriction text — prohibited by default unless a property explicitly says otherwise (often narrowly, e.g. "licensed hunters during big-game season only").
+- Species vocabulary here is much broader than Home/My Hunt's curated list (includes things like "dusky grouse," "furbearers," "scaled quail") since it's lifted straight from the brochure.
+- I gitignored future brochure PDFs (this one's 54MB) — the useful, human-editable data lives in the JSONL now, so there's no reason to carry source PDFs in every clone. The two older big-game/small-game PDFs from earlier sessions are still committed from before that rule existed — let me know if you'd like those cleaned out of history too.
+
+Verified with a real browser session against the live 633-row dataset: filtered to elk, sorted by distance, confirmed the nearest option floats to the top, and confirmed a Notes edit persists.
+

@@ -368,13 +368,18 @@ app.get("/api/access-areas/species", (req, res) => {
     }
 });
 
-const updateAccessAreaNotesStmt = db.prepare(
-    `UPDATE AccessAreas SET Notes = @notes, UpdatedAt = CURRENT_TIMESTAMP WHERE AccessAreaID = @id`
+const updateAccessAreaStmt = db.prepare(
+    `UPDATE AccessAreas SET Notes = @notes, CampingAllowed = @campingAllowed, UpdatedAt = CURRENT_TIMESTAMP WHERE AccessAreaID = @id`
 );
 const getAccessAreaStmt = db.prepare(`SELECT * FROM AccessAreas WHERE AccessAreaID = ?`);
 
-// PUT /api/access-areas/:id/notes -- the only user-editable field here.
-app.put("/api/access-areas/:id/notes", (req, res) => {
+// PUT /api/access-areas/:id -- updates the user-editable fields: Notes and
+// CampingAllowed. CampingAllowed starts out seeded from the brochure's own
+// restriction text, but the brochure can be wrong, stale, or just not worth
+// trusting for a day-access-only property -- so it's a correctable field
+// like Notes, not a fixed fact. Everything else on the row (GMU, acres,
+// species, etc.) stays brochure-sourced and read-only.
+app.put("/api/access-areas/:id", (req, res) => {
     try {
         const id = Number(req.params.id);
         const existing = getAccessAreaStmt.get(id);
@@ -382,10 +387,14 @@ app.put("/api/access-areas/:id/notes", (req, res) => {
             return res.status(404).json({ success: false, error: "Access area not found" });
         }
 
-        updateAccessAreaNotesStmt.run({ id, notes: (req.body && req.body.notes) || null });
+        const body = req.body || {};
+        const notes = "notes" in body ? body.notes : existing.Notes;
+        const campingAllowed = "campingAllowed" in body ? !!body.campingAllowed : !!existing.CampingAllowed;
+
+        updateAccessAreaStmt.run({ id, notes: notes || null, campingAllowed: campingAllowed ? 1 : 0 });
         res.json({ success: true, data: rowToAccessArea(getAccessAreaStmt.get(id)) });
     } catch (err) {
-        console.error("PUT /api/access-areas/:id/notes error:", err);
+        console.error("PUT /api/access-areas/:id error:", err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
