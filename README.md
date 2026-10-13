@@ -12,9 +12,11 @@ hunt-notes/
   index.js, db.js, package.json   -- backend (API on port 4100)
   sql/schema.sql                  -- table definitions
   sql/seed_2026.sql               -- 2026 draw dates & season data (re-run yearly)
-  scripts/init-db.js              -- applies schema.sql + seed_2026.sql
+  scripts/init-db.js              -- applies schema.sql + seed_2026.sql + migrations
+  scripts/import_access_areas.js  -- loads Docs/extraction/access_areas.jsonl (run by hand, not by init-db.js)
   data/HuntNotes.db                -- SQLite file (gitignored)
-  Docs/                            -- source CPW brochures (+ extracted .txt for reference)
+  Docs/                            -- source CPW brochures (PDFs gitignored -- see below)
+  Docs/extraction/access_areas.jsonl -- hand-transcribed SWA/STL data, one JSON object per line
   frontend/                        -- Vite dev server on port 5180, proxies /api -> :4100
 ```
 
@@ -48,6 +50,25 @@ year (usually Feb/March). To refresh:
    (or add it to `scripts/init-db.js`).
 4. The Home tab defaults to the latest `SeasonYear` present in the DB,
    or pass `?year=2026` to `/api/home/dashboard` to pin an older one.
+
+## Updating Access-tab data (SWA/STL properties)
+
+CPW's "State Recreation Lands" brochure is a scanned/image-only PDF (no
+text layer), so there's no quick re-extraction -- updating it means
+re-reading the relevant pages by hand and editing
+`Docs/extraction/access_areas.jsonl` (one JSON object per line: `name`,
+`type` ('SWA'/'STL'), `county`, `gmus`, `acres`, `species` (array),
+`recreation`, `facilities`, `camping` (bool), `restrictions`, `dist`
+(estimated road miles from Denver -- not in the brochure, which gives
+turn-by-turn directions instead), `page`). After editing, reload with:
+
+```
+node scripts/import_access_areas.js
+```
+
+This is an upsert keyed by (name, type) and never touches a row's
+`Notes` -- adding or correcting properties never wipes your own notes
+on existing ones.
 
 ## Design notes
 
@@ -98,3 +119,28 @@ year (usually Feb/March). To refresh:
   purchases). Primary Draw and Secondary Draw stay single-valued on
   `MyHuntPlans`, since CPW really does award at most one license per
   species per draw.
+- **Access tab data was hand-transcribed from a scanned PDF.** The
+  "2026 Colorado State Recreation Lands" brochure has no text layer at
+  all (85 pages, every one an image) -- there was nothing to run
+  `pdftotext` against, so every SWA/STL property (633 total) was read
+  visually page by page. Only properties with an explicit "Hunting:"
+  field in the brochure are included -- fishing-only/wildlife-viewing-only
+  SWAs and STLs are left out, since the whole point of this tab is
+  hunting access. A few properties with ambiguous species info (hunting
+  clearly allowed per the restrictions text, but no species named) are
+  included with an empty species list rather than guessed at.
+- **Distance from Denver is estimated, not from the brochure.** The
+  brochure gives turn-by-turn directions instead of a straight
+  distance figure -- `DistanceFromDenverMiles` is a rounded (nearest 5
+  mi) road-distance estimate from the referenced town/highway, good
+  enough for "is this a day trip" planning but not precise.
+- **Camping reflects the brochure's own text**, not a design choice:
+  SWA/STL camping is prohibited by default unless a property's
+  Restrictions explicitly say otherwise (sometimes narrowly, e.g. "by
+  licensed hunters during big-game season +/-3 days only").
+- **Access area data is a one-time import, not part of
+  `seed_2026.sql`'s yearly reseed.** `AccessAreas`/`AccessAreaSpecies`
+  have their own unique constraints and their own script
+  (`import_access_areas.js`, upsert by name+type, never touches
+  `Notes`) specifically so `db:init` can never wipe your own notes on
+  a property -- see "Updating Access-tab data" above.

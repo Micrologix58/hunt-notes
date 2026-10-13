@@ -56,4 +56,16 @@ Design calls worth knowing about
 3. No "Save" button — every field saves itself ~500ms after you stop typing. I verified this with a scripted browser test (filled every Elk field, confirmed "Saved," reloaded, confirmed the row was still in SQLite).
 4. One known rough edge: there's no URL routing yet, so a full page reload always lands back on the Home tab (your saved data isn't affected, just which tab is showing). Easy to fix later if it bugs you.
 
+What changed, and why
+
+Your domain knowledge caught a real gap: Primary Draw and Secondary Draw were correctly singular (CPW really does cap those at one license per species per draw), but Leftover License was also locked to a single entry — which can't represent your actual 2026 example (a drawn archery tag D-F-103-O3-A plus a separately-purchased leftover rifle tag D-E-109-O2-R in the adjacent unit, both for Deer, same year — legal under List A/B).
+
+Fixed by making Leftover its own list:
+- Leftover/OTC Tags is now a repeatable set of cards per species — Hunt Code, Purchase Date, Notes, and a remove button — with "+ Add Leftover Tag" to add more. No cap on how many.
+- Backend got its own table (MyHuntLeftoverPurchases) and CRUD endpoints, decoupled from the single-valued MyHuntPlans row.
+- Since this changed the shape of an already-created table, I added a small guarded migration (checks column/table existence first) rather than just editing the schema — so it's safe whether you have existing data or not, and db:init stays idempotent.
+
+I verified this against your exact example end-to-end (filled both tags, confirmed autosave, checked the API response directly) — did hit one real bug along the way (a flex-CSS issue collapsed the Hunt Code input to a sliver), caught it in the screenshot, and fixed it before pushing.
+
+One thing I didn't change: Primary/Secondary Draw are still single-valued, since that matches the actual "one license per species per draw" rule. If you've ever seen CPW award more than one license from a single draw for the same species, let me know and I'll generalize those too — but I don't believe that happens.
 

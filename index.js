@@ -309,6 +309,87 @@ app.delete("/api/my-hunt/leftover-purchases/:id", (req, res) => {
     }
 });
 
+// ─── Access tab: SWA/STL hunting-access properties ─────────────────────────
+//
+// Reference data transcribed from the CPW State Recreation Lands brochure
+// (see sql/schema.sql and scripts/import_access_areas.js) -- everything
+// except Notes is read-only brochure fact; Notes is the user's own field.
+
+function rowToAccessArea(row) {
+    return {
+        id: row.AccessAreaID,
+        name: row.Name,
+        areaType: row.AreaType,
+        county: row.County ?? "",
+        gmus: row.GMUs ?? "",
+        primaryGmu: row.PrimaryGMU,
+        acresTotal: row.AcresTotal,
+        distanceFromDenverMiles: row.DistanceFromDenverMiles,
+        recreation: row.Recreation ?? "",
+        facilities: row.Facilities ?? "",
+        campingAllowed: !!row.CampingAllowed,
+        restrictions: row.Restrictions ?? "",
+        notes: row.Notes ?? "",
+        sourcePage: row.SourcePage,
+        updatedAt: row.UpdatedAt,
+        species: [],
+    };
+}
+
+// GET /api/access-areas -- returns every SWA/STL property with its species
+// list attached. One round trip; the dataset (~630 rows) is small enough
+// that client-side sort/filter is simpler than paginating a reference table.
+app.get("/api/access-areas", (req, res) => {
+    try {
+        const areas = db.prepare(`SELECT * FROM AccessAreas ORDER BY Name`).all().map(rowToAccessArea);
+        const byId = new Map(areas.map(a => [a.id, a]));
+
+        const speciesRows = db.prepare(`SELECT AccessAreaID, SpeciesName FROM AccessAreaSpecies ORDER BY SpeciesName`).all();
+        for (const row of speciesRows) {
+            const area = byId.get(row.AccessAreaID);
+            if (area) area.species.push(row.SpeciesName);
+        }
+
+        res.json({ success: true, data: areas });
+    } catch (err) {
+        console.error("GET /api/access-areas error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// GET /api/access-areas/species -- distinct species names, for the filter dropdown.
+app.get("/api/access-areas/species", (req, res) => {
+    try {
+        const rows = db.prepare(`SELECT DISTINCT SpeciesName FROM AccessAreaSpecies ORDER BY SpeciesName`).all();
+        res.json({ success: true, data: rows.map(r => r.SpeciesName) });
+    } catch (err) {
+        console.error("GET /api/access-areas/species error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+const updateAccessAreaNotesStmt = db.prepare(
+    `UPDATE AccessAreas SET Notes = @notes, UpdatedAt = CURRENT_TIMESTAMP WHERE AccessAreaID = @id`
+);
+const getAccessAreaStmt = db.prepare(`SELECT * FROM AccessAreas WHERE AccessAreaID = ?`);
+
+// PUT /api/access-areas/:id/notes -- the only user-editable field here.
+app.put("/api/access-areas/:id/notes", (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const existing = getAccessAreaStmt.get(id);
+        if (!existing) {
+            return res.status(404).json({ success: false, error: "Access area not found" });
+        }
+
+        updateAccessAreaNotesStmt.run({ id, notes: (req.body && req.body.notes) || null });
+        res.json({ success: true, data: rowToAccessArea(getAccessAreaStmt.get(id)) });
+    } catch (err) {
+        console.error("PUT /api/access-areas/:id/notes error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Hunt Notes API listening on port ${PORT}`);
 });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { TabBar, type AppTab } from "./TabBar";
 import { HomeTab } from "./HomeTab";
 import { MyHuntTab } from "./MyHuntTab";
+import { AccessTab } from "./AccessTab";
 
 function App() {
     const [activeTab, setActiveTab] = useState<AppTab>("home");
@@ -15,6 +16,7 @@ function App() {
             <div style={{ flex: 1, overflow: "auto" }}>
                 {activeTab === "home" && <HomeTab />}
                 {activeTab === "myhunt" && <MyHuntTab />}
+                {activeTab === "access" && <AccessTab />}
             </div>
         </div>
     );

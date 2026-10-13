@@ -7,3 +7,10 @@ data/*.db-shm
 
 frontend/node_modules/
 frontend/dist/
+
+# Source brochure PDFs are large (50-100MB) and not needed to run the app --
+# the data that matters is already transcribed into sql/seed_*.sql and
+# Docs/extraction/*.jsonl. Keep PDFs local; don't bloat the repo/clones.
+# (2026-Colorado Big Game Hunting Brochure.pdf and Colorado Small Game &
+# Waterfowl Brochure.pdf are already committed from before this rule existed.)
+Docs/*.pdf

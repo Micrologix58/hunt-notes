@@ -124,3 +124,51 @@ CREATE TABLE IF NOT EXISTS MyHuntLeftoverPurchases (
 );
 
 CREATE INDEX IF NOT EXISTS idx_MyHuntLeftoverPurchases_Species ON MyHuntLeftoverPurchases (SeasonYear, SpeciesKey);
+
+-- Access tab: public hunting-access properties (State Wildlife Areas, State
+-- Trust Lands, and later State Parks/BLM/National Forest), sourced from the
+-- CPW "State Recreation Lands" brochure (Docs/2026 Colorado State Recreation
+-- Lands.pdf -- a scanned/image-only PDF, transcribed by hand page by page).
+--
+-- Species are a separate child table, not a comma list, because the user
+-- wants "records for each species listed" (one row per species per area) so
+-- the Access tab can filter/sort by species. Species names here are free
+-- text as printed in the brochure ('dusky grouse', 'big game', 'waterfowl',
+-- etc.) -- a much broader vocabulary than the Home/My Hunt tabs' curated
+-- big-game list -- not a FK to the Species table.
+CREATE TABLE IF NOT EXISTS AccessAreas (
+    AccessAreaID INTEGER PRIMARY KEY,
+    Name         TEXT NOT NULL,
+    AreaType     TEXT NOT NULL CHECK (AreaType IN ('SWA', 'STL', 'State Park', 'SFU', 'BLM', 'National Forest')),
+    County       TEXT,                              -- as printed, may list more than one county
+    GMUs         TEXT,                               -- display text, e.g. '133, 134'
+    PrimaryGMU   INTEGER,                             -- first/lowest GMU number, for sorting
+    AcresTotal   REAL,
+    DistanceFromDenverMiles INTEGER,                  -- estimated road miles -- not in the brochure
+                                                       -- (it gives turn-by-turn directions instead),
+                                                       -- approximated from the referenced town/highway.
+    Recreation   TEXT,                                -- brochure text, e.g. 'hiking, wildlife viewing'
+    Facilities   TEXT,                                -- brochure text, e.g. 'restrooms, boat ramps'
+    CampingAllowed INTEGER NOT NULL DEFAULT 0 CHECK (CampingAllowed IN (0, 1)),
+    Restrictions TEXT,                                -- brochure-sourced reference rules (read-only)
+    Notes        TEXT,                                -- the user's own notes -- restrictions/issues
+                                                       -- they personally find, separate from the
+                                                       -- brochure's own Restrictions text above.
+    SourcePage   INTEGER,                             -- printed brochure page number, for traceability
+    CreatedAt    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (Name, AreaType)
+);
+
+CREATE TABLE IF NOT EXISTS AccessAreaSpecies (
+    AccessAreaSpeciesID INTEGER PRIMARY KEY,
+    AccessAreaID INTEGER NOT NULL REFERENCES AccessAreas(AccessAreaID) ON DELETE CASCADE,
+    SpeciesName  TEXT NOT NULL,
+    UNIQUE (AccessAreaID, SpeciesName)
+);
+
+CREATE INDEX IF NOT EXISTS idx_AccessAreas_Type ON AccessAreas (AreaType);
+CREATE INDEX IF NOT EXISTS idx_AccessAreas_PrimaryGMU ON AccessAreas (PrimaryGMU);
+CREATE INDEX IF NOT EXISTS idx_AccessAreas_Distance ON AccessAreas (DistanceFromDenverMiles);
+CREATE INDEX IF NOT EXISTS idx_AccessAreaSpecies_Area ON AccessAreaSpecies (AccessAreaID);
+CREATE INDEX IF NOT EXISTS idx_AccessAreaSpecies_Name ON AccessAreaSpecies (SpeciesName);

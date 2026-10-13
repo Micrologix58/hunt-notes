@@ -1,9 +1,10 @@
-export type AppTab = 'home' | 'myhunt';
+export type AppTab = 'home' | 'myhunt' | 'access';
 
 const TABS: { id: AppTab; label: string }[] = [
     { id: 'home',   label: 'Home'     },
     { id: 'myhunt', label: 'My Hunt'  },
-    // Future tabs: GMU/hunt-area research, hunt log.
+    { id: 'access', label: 'Access'   },
+    // Future tabs: hunt log, BLM/National Forest access.
 ];
 
 type Props = {
