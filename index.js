@@ -406,6 +406,69 @@ app.put("/api/access-areas/:id", (req, res) => {
     }
 });
 
+// ─── Draw Odds tab: harvest stats + draw points, joined by hunt code ──────
+//
+// One row per (Species, HuntCode), with harvest stats and primary/secondary
+// draw points left-joined on -- nullable wherever that hunt code has no
+// data in a given source (e.g. a hunt code with too few harvest-survey
+// responses to estimate, or a species/year combo not yet imported).
+// GMU/Sex/Method/SeasonCode are decoded from the hunt code itself at
+// import time (see scripts/import_hunt_codes.js), so they're consistent
+// across whichever source(s) a given code appears in.
+
+const drawOddsStmt = db.prepare(`
+    WITH AllCodes AS (
+        SELECT DISTINCT Species, HuntCode FROM HuntCodeHarvestStats
+        UNION
+        SELECT DISTINCT Species, HuntCode FROM HuntCodeDrawPoints
+    )
+    SELECT
+        ac.Species AS species,
+        ac.HuntCode AS huntCode,
+        COALESCE(h.GMU, dp.GMU, ds.GMU) AS gmu,
+        COALESCE(h.Sex, dp.Sex, ds.Sex) AS sex,
+        COALESCE(h.Method, dp.Method, ds.Method) AS method,
+        COALESCE(h.SeasonCode, dp.SeasonCode, ds.SeasonCode) AS seasonCode,
+
+        h.SeasonYear AS harvestYear, h.AntleredCount AS antleredCount, h.AntlerlessCount AS antlerlessCount,
+        h.YoungCount AS youngCount, h.TotalHarvest AS totalHarvest, h.TotalHunters AS totalHunters,
+        h.PercentSuccess AS percentSuccess, h.TotalRecDays AS totalRecDays, h.FewResponses AS fewResponses,
+
+        dp.SeasonYear AS primaryYear, dp.List AS primaryList,
+        dp.AdultResStatus AS primaryAdultResStatus, dp.AdultResPoints AS primaryAdultResPoints,
+        dp.AdultNonResStatus AS primaryAdultNonResStatus, dp.AdultNonResPoints AS primaryAdultNonResPoints,
+        dp.YouthResStatus AS primaryYouthResStatus, dp.YouthResPoints AS primaryYouthResPoints,
+        dp.YouthNonResStatus AS primaryYouthNonResStatus, dp.YouthNonResPoints AS primaryYouthNonResPoints,
+        dp.LandownerUnrestrictedStatus AS primaryLandownerUnrestrictedStatus,
+        dp.LandownerRestrictedStatus AS primaryLandownerRestrictedStatus,
+
+        ds.SeasonYear AS secondaryYear, ds.List AS secondaryList,
+        ds.AdultResStatus AS secondaryAdultResStatus, ds.AdultResPoints AS secondaryAdultResPoints,
+        ds.AdultNonResStatus AS secondaryAdultNonResStatus, ds.AdultNonResPoints AS secondaryAdultNonResPoints,
+        ds.YouthResStatus AS secondaryYouthResStatus, ds.YouthResPoints AS secondaryYouthResPoints,
+        ds.YouthNonResStatus AS secondaryYouthNonResStatus, ds.YouthNonResPoints AS secondaryYouthNonResPoints,
+        ds.LandownerUnrestrictedStatus AS secondaryLandownerUnrestrictedStatus,
+        ds.LandownerRestrictedStatus AS secondaryLandownerRestrictedStatus
+    FROM AllCodes ac
+    LEFT JOIN HuntCodeHarvestStats h ON h.Species = ac.Species AND h.HuntCode = ac.HuntCode
+    LEFT JOIN HuntCodeDrawPoints dp ON dp.Species = ac.Species AND dp.HuntCode = ac.HuntCode AND dp.DrawType = 'primary'
+    LEFT JOIN HuntCodeDrawPoints ds ON ds.Species = ac.Species AND ds.HuntCode = ac.HuntCode AND ds.DrawType = 'secondary'
+    ORDER BY ac.Species, gmu, ac.HuntCode
+`);
+
+app.get("/api/draw-odds", (req, res) => {
+    try {
+        const rows = drawOddsStmt.all().map(r => ({
+            ...r,
+            fewResponses: !!r.fewResponses,
+        }));
+        res.json({ success: true, data: rows });
+    } catch (err) {
+        console.error("GET /api/draw-odds error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Hunt Notes API listening on port ${PORT}`);
 });

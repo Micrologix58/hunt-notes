@@ -179,3 +179,79 @@ CREATE INDEX IF NOT EXISTS idx_AccessAreas_PrimaryGMU ON AccessAreas (PrimaryGMU
 CREATE INDEX IF NOT EXISTS idx_AccessAreas_Distance ON AccessAreas (DistanceFromDenverMiles);
 CREATE INDEX IF NOT EXISTS idx_AccessAreaSpecies_Area ON AccessAreaSpecies (AccessAreaID);
 CREATE INDEX IF NOT EXISTS idx_AccessAreaSpecies_Name ON AccessAreaSpecies (SpeciesName);
+
+-- Draw Odds tab: statewide harvest stats + post-draw preference-points
+-- data, both at the hunt-code level. Both are published by CPW as
+-- scanned-free but absolute-positioned-text PDFs (table structure isn't
+-- real PDF tables, just text boxes placed at coordinates) -- parsed with
+-- coordinate-clustering scripts in Docs/extraction/*.py, not pdftotext's
+-- column-alignment heuristics (which badly scrambles these reports' rows).
+-- See README's "Updating Draw Odds data" section.
+--
+-- Hunt codes are 8 characters and self-describing (species/sex/GMU/season/
+-- method) -- see the Big Game brochure's "Hunt codes contain a lot of
+-- information" page. GMU, Sex and Method are decoded from the code itself
+-- at import time so they're directly filterable/sortable without
+-- re-parsing in every query.
+
+-- One row per hunt code per year: statewide harvest survey results.
+-- Antlered/Antlerless/Young correspond to the report's Bucks/Does/Fawns
+-- (deer, pronghorn) or Bulls/Cows/Calves (elk) columns -- named generically
+-- since the sex terms differ by species.
+CREATE TABLE IF NOT EXISTS HuntCodeHarvestStats (
+    HuntCodeHarvestStatID INTEGER PRIMARY KEY,
+    SeasonYear      INTEGER NOT NULL,
+    Species         TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn')),
+    HuntCode        TEXT NOT NULL,             -- as published, e.g. 'DM002O1M*' (trailing * = few responses)
+    GMU             INTEGER,                    -- decoded from HuntCode chars 3-5
+    Sex             TEXT,                       -- decoded from HuntCode char 2: M/F/E
+    Method          TEXT,                       -- decoded from HuntCode char 8: A/M/R/X
+    SeasonCode      TEXT,                       -- decoded from HuntCode chars 6-7, e.g. 'O1'
+    AntleredCount   INTEGER,
+    AntlerlessCount INTEGER,
+    YoungCount      INTEGER,
+    TotalHarvest    INTEGER,
+    TotalHunters    INTEGER,
+    PercentSuccess  REAL,                       -- e.g. 45.5 (not 0.455)
+    TotalRecDays    INTEGER,
+    FewResponses    INTEGER NOT NULL DEFAULT 0 CHECK (FewResponses IN (0, 1)),
+    UNIQUE (SeasonYear, Species, HuntCode)
+);
+
+-- One row per hunt code per year per draw type: how many preference
+-- points (or Choice N / Leftover / No Apps / None Drawn / N/A) it took to
+-- draw, broken out by the 6 applicant categories CPW reports. *Status is
+-- the full text as published (kept verbatim since "Choice 2" and
+-- "Leftover Choice 1" aren't reducible to a point count); *Points is the
+-- parsed-out number when the status is "N Pref Points", else NULL, so the
+-- UI can sort/filter numerically without parsing text at query time.
+CREATE TABLE IF NOT EXISTS HuntCodeDrawPoints (
+    HuntCodeDrawPointID INTEGER PRIMARY KEY,
+    SeasonYear  INTEGER NOT NULL,
+    Species     TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn')),
+    DrawType    TEXT NOT NULL CHECK (DrawType IN ('primary', 'secondary')),
+    HuntCode    TEXT NOT NULL,
+    GMU         INTEGER,
+    Sex         TEXT,
+    Method      TEXT,
+    SeasonCode  TEXT,
+    List        TEXT,                          -- A/B/C
+
+    AdultResStatus    TEXT,
+    AdultResPoints    INTEGER,
+    AdultNonResStatus TEXT,
+    AdultNonResPoints INTEGER,
+    YouthResStatus    TEXT,
+    YouthResPoints    INTEGER,
+    YouthNonResStatus TEXT,
+    YouthNonResPoints INTEGER,
+    LandownerUnrestrictedStatus TEXT,
+    LandownerRestrictedStatus   TEXT,
+
+    UNIQUE (SeasonYear, Species, DrawType, HuntCode)
+);
+
+CREATE INDEX IF NOT EXISTS idx_HuntCodeHarvestStats_GMU ON HuntCodeHarvestStats (SeasonYear, Species, GMU);
+CREATE INDEX IF NOT EXISTS idx_HuntCodeHarvestStats_Code ON HuntCodeHarvestStats (HuntCode);
+CREATE INDEX IF NOT EXISTS idx_HuntCodeDrawPoints_GMU ON HuntCodeDrawPoints (SeasonYear, Species, DrawType, GMU);
+CREATE INDEX IF NOT EXISTS idx_HuntCodeDrawPoints_Code ON HuntCodeDrawPoints (HuntCode);

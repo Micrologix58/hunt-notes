@@ -3,6 +3,7 @@ import { TabBar, type AppTab } from "./TabBar";
 import { HomeTab } from "./HomeTab";
 import { MyHuntTab } from "./MyHuntTab";
 import { AccessTab } from "./AccessTab";
+import { DrawOddsTab } from "./DrawOddsTab";
 
 function App() {
     const [activeTab, setActiveTab] = useState<AppTab>("home");
@@ -17,6 +18,7 @@ function App() {
                 {activeTab === "home" && <HomeTab />}
                 {activeTab === "myhunt" && <MyHuntTab />}
                 {activeTab === "access" && <AccessTab />}
+                {activeTab === "drawodds" && <DrawOddsTab />}
             </div>
         </div>
     );

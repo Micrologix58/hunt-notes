@@ -70,6 +70,51 @@ This is an upsert keyed by (name, type) and never touches a row's
 `Notes` -- adding or correcting properties never wipes your own notes
 on existing ones.
 
+## Updating Draw Odds data (harvest stats & preference points)
+
+CPW's statewide harvest and post-draw reports are real text-based PDFs
+(unlike the brochures above), but they use *absolute-positioned* text
+rather than actual PDF tables -- `pdftotext`'s column-alignment
+heuristics badly scramble their rows (hunt codes end up paired with
+the wrong data, or two adjacent values merge into one). Getting this
+data out required Python scripts
+(`Docs/extraction/parse_harvest.py`, `parse_drawn_out.py`,
+`parse_deer_recap.py`) that work from raw word *coordinates*
+(`pymupdf`) and reconstruct each row by Y-position clustering and
+nearest-column-X matching instead.
+
+To add a new year or species:
+
+1. Drop the new report PDF in `Docs/` (CPW publishes these as
+   "Statewide Harvest Estimates" for harvest stats, and either a
+   compact "Drawn Out At Report" or a "Post Draw Report"/"Post Draw
+   Hunt Statistics Report" for preference points -- both of the
+   latter two use the same per-hunt-code-or-per-block "Drawn Out At /
+   # Drawn at Final Level" box, just at different page granularity).
+2. `pip install pymupdf` (one-time; not part of the Node app's own
+   dependencies, since these are standalone extraction scripts, not
+   something the running app needs).
+3. Run the matching parser, e.g.:
+   ```
+   python Docs/extraction/parse_harvest.py "Docs/2026 Deer Statewide Harvest Final.pdf" deer 2026 Docs/extraction/harvest_deer_2026.jsonl
+   python Docs/extraction/parse_deer_recap.py "Docs/2026 Primary DEER Post Draw Report.pdf" deer primary 2026 Docs/extraction/draw_points_deer_primary_2026.jsonl
+   ```
+   `parse_deer_recap.py` works for any report with one hunt code
+   (or a repeating block) per page/section -- it's what was used for
+   both the 1,065-page Deer primary report and the Pronghorn
+   secondary report, unchanged. `parse_drawn_out.py` is specifically
+   for the compact multi-hunt-code-per-page "Drawn Out At Report"
+   format.
+4. Add the new file(s) to the lists in `scripts/import_hunt_codes.js`,
+   then `node scripts/import_hunt_codes.js` (upsert by
+   (year, species, hunt code[, draw type]) -- safe to re-run).
+
+Every parser run was spot-checked against the PDF's own rendered page
+image before trusting it at scale (see git history for the specific
+coordinate-debugging process) -- if a report's layout doesn't match
+what these scripts expect, don't assume the output is right; render a
+sample page and compare.
+
 ## Design notes
 
 - **Draw dates are not per-species.** Colorado runs one unified
@@ -154,3 +199,27 @@ on existing ones.
   (`import_access_areas.js`, upsert by name+type, never touches
   `Notes`) specifically so `db:init` can never wipe your own notes on
   a property -- see "Updating Access-tab data" above.
+- **Draw Odds only covers Deer and Pronghorn so far** -- those are the
+  reports that have been provided; Elk works exactly the same way
+  once its harvest/post-draw PDFs are added (see "Updating Draw Odds
+  data" above). GMU/Sex/Method are decoded from each hunt code itself
+  (8 characters, self-describing -- see the Big Game brochure's "Hunt
+  codes contain a lot of information" page), not looked up from a
+  separate table, so a hunt code from *any* source shows up correctly
+  filterable/sortable the moment it's imported.
+- **Preference-point status is kept as published text, not reduced to
+  a single number.** "Choice 2", "Leftover Choice 1", "No Apps" and
+  "None Drawn" aren't point counts -- they're genuinely different
+  outcomes (drawn on a later ranked choice, bought as a leftover,
+  nobody applied, or applied and still wasn't drawn even at 0 points).
+  `HuntCodeDrawPoints` keeps the full status text per category *and* a
+  parsed-out `*Points` integer (only populated when the status really
+  is "N Pref Points") so the UI can sort/filter numerically without
+  conflating these cases.
+- **Harvest and draw-points data can be (and currently are) different
+  years per species** -- Deer harvest/primary-draw data is 2025,
+  Pronghorn primary/secondary-draw data is 2026 (no 2026 Pronghorn
+  harvest survey was available yet). The Draw Odds tab's harvest and
+  draw-points columns are independently nullable per hunt code for
+  exactly this reason -- there's no requirement that a hunt code have
+  data in every source.
