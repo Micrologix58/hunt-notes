@@ -1,0 +1,7 @@
+Hunt-Notes
+
+I would like to create a db and app for my hunting exploits, and try to improve over my current manual notetaking that lives on old hunting regs and guides, so I can store info without losing it or having to re-highlight or re-enter my notes.  I think this app can serve as my hunting dashboard, so I don't miss dates and opportunities for drawings, tags, etc.  Also having the db will allow me to integrate data from different sources and quickly research hunting areas.
+
+I would like to set it up on the same server as the commodities app and use the same db technology with SQLLite, which has been working well.
+
+For the home tab, I'd like to put the important dates for drawings, seasons, by game.  On the top section, include the main dates for primary and secondary draw, and the seasonal dates, like the columns on page 2 of the hunting guide.  So Lets have columns for Deer, Elk, Pronghorn, we can leave moose and bear out.  Also add colums for small game including rabbit, dove, blue grouse, sage grouse, sharp-tail grouse and pheasant.  For each small game, include the hunting seasons, bag and possession.  
