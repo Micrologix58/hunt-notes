@@ -18,7 +18,16 @@ const inputStyle: React.CSSProperties = {
 };
 const labelStyle: React.CSSProperties = { color: "#64748b", fontSize: 12, marginRight: 4 };
 const tableWrapStyle: React.CSSProperties = { overflowX: "auto", border: "1px solid #2a2a2a", borderRadius: 6 };
-const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13 };
+// table-layout:fixed so these widths are actually honored instead of being
+// just a hint the browser's auto layout can override based on content.
+// Facilities and Camping were cut to 50%/75% of their original width on
+// request; the freed space (70px + 52px) went entirely to Notes.
+const COLUMN_WIDTHS = {
+    name: 180, type: 60, county: 110, gmu: 80, distance: 80, acres: 80,
+    species: 220, recreation: 160, facilities: 70, camping: 18, notes: 382,
+};
+const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" };
+const campingTdStyle: React.CSSProperties = { padding: "6px 2px", color: "#e2e8f0", verticalAlign: "top", textAlign: "center" };
 const thStyle: React.CSSProperties = {
     position: "sticky", top: 0, background: "#1a1a1a", textAlign: "left", padding: "8px 10px",
     color: "#94a3b8", fontWeight: 600, borderBottom: "1px solid #2a2a2a", whiteSpace: "nowrap",
@@ -128,6 +137,19 @@ export function AccessTab() {
 
             <div style={tableWrapStyle}>
                 <table style={tableStyle}>
+                    <colgroup>
+                        <col style={{ width: COLUMN_WIDTHS.name }} />
+                        <col style={{ width: COLUMN_WIDTHS.type }} />
+                        <col style={{ width: COLUMN_WIDTHS.county }} />
+                        <col style={{ width: COLUMN_WIDTHS.gmu }} />
+                        <col style={{ width: COLUMN_WIDTHS.distance }} />
+                        <col style={{ width: COLUMN_WIDTHS.acres }} />
+                        <col style={{ width: COLUMN_WIDTHS.species }} />
+                        <col style={{ width: COLUMN_WIDTHS.recreation }} />
+                        <col style={{ width: COLUMN_WIDTHS.facilities }} />
+                        <col style={{ width: COLUMN_WIDTHS.camping }} />
+                        <col style={{ width: COLUMN_WIDTHS.notes }} />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th style={thStyle}>Name</th>
@@ -138,9 +160,9 @@ export function AccessTab() {
                             <th style={{ ...thStyle, textAlign: "right" }}>Acres</th>
                             <th style={thStyle}>Species</th>
                             <th style={thStyle}>Recreation</th>
-                            <th style={thStyle}>Facilities</th>
-                            <th style={thStyle}>Camping</th>
-                            <th style={{ ...thStyle, minWidth: 220 }}>Notes</th>
+                            <th style={{ ...thStyle, whiteSpace: "normal" }}>Facilities</th>
+                            <th style={{ ...thStyle, padding: "8px 2px", textAlign: "center" }} title="Camping">⛺</th>
+                            <th style={thStyle}>Notes</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -157,7 +179,7 @@ export function AccessTab() {
                                     <td style={tdStyle}>{a.species.join(", ") || "—"}</td>
                                     <td style={tdStyle}>{a.recreation || "—"}</td>
                                     <td style={tdStyle}>{a.facilities || "—"}</td>
-                                    <td style={{ ...tdStyle, textAlign: "center" }}>
+                                    <td style={campingTdStyle}>
                                         <input
                                             type="checkbox"
                                             checked={a.campingAllowed}

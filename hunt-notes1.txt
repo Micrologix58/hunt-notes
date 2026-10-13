@@ -95,3 +95,18 @@ Worth knowing:
 
 Verified with a real browser session against the live 633-row dataset: filtered to elk, sorted by distance, confirmed the nearest option floats to the top, and confirmed a Notes edit persists.
 
+Current Pref. Points added to My Hunt
+
+A plain editable number field for each species (Deer/Elk/Pronghorn), sitting right under Applied — ahead of the Primary/Secondary Draw sections, since preference points only matter for the primary draw. Leave it blank if you don't track it, or enter your current balance; autosaves like everything else on the tab.
+
+Since there's no CPW API to pull this from, it's purely manual — fill in whatever your last results letter or account page told you. Verified end-to-end including the tricky edge case (entering 0 for Pronghorn correctly persisted as 0, not dropped as empty/null).
+
+thanks, tht was my plan
+
+Glad it matches what you had in mind. The Hunt Notes app now covers Home (season dates), My Hunt (application tracking with pref points), and Access (633 SWA/STL properties) — let me know when you want to keep building, whether that's the hunt log, BLM/National Forest access, or something else entirely.
+
+✻ Cogitated for 7s · done 11:54 AM
+
+> on the access tab, can you reduce the facilities tab by 50% , the camping tab by 75% and extend the notes tab by the renmaining space?
+
+
