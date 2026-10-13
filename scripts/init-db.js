@@ -3,9 +3,12 @@
 const fs = require("fs");
 const path = require("path");
 const db = require("../db");
+const { runMigrations } = require("./migrations");
 
 const schemaSql = fs.readFileSync(path.join(__dirname, "..", "sql", "schema.sql"), "utf8");
 const seedSql = fs.readFileSync(path.join(__dirname, "..", "sql", "seed_2026.sql"), "utf8");
+
+runMigrations(db);
 
 db.exec(schemaSql);
 console.log("Schema applied.");

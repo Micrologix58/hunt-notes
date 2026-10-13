@@ -98,14 +98,29 @@ CREATE TABLE IF NOT EXISTS MyHuntPlans (
         CHECK (SecondaryDrawResult IN ('pending', 'drawn', 'not_drawn')),
     SecondaryDrawnHuntCode  TEXT,
 
-    -- Leftover license purchase.
-    LeftoverHuntCode     TEXT,
-    LeftoverPurchased    INTEGER NOT NULL DEFAULT 0 CHECK (LeftoverPurchased IN (0, 1)),
-    LeftoverPurchaseDate TEXT,
-    LeftoverNotes        TEXT,
-
+    -- Leftover/OTC purchases live in MyHuntLeftoverPurchases below, not
+    -- here -- see that table's comment for why.
     Notes     TEXT,
     UpdatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     UNIQUE (SeasonYear, SpeciesKey)
 );
+
+-- Leftover/OTC tags held for a species in a year. This is a separate,
+-- unbounded list rather than columns on MyHuntPlans because CPW's "one
+-- license per species, per draw" limit applies only to the primary and
+-- secondary DRAWS -- a Leftover/OTC purchase isn't a draw, and List A/B
+-- hunts let you hold more than one tag for the same species in the same
+-- year (e.g. a drawn List A archery tag plus a purchased List B rifle
+-- tag in an adjacent unit -- or even two List B leftover purchases).
+CREATE TABLE IF NOT EXISTS MyHuntLeftoverPurchases (
+    MyHuntLeftoverPurchaseID INTEGER PRIMARY KEY,
+    SeasonYear   INTEGER NOT NULL,
+    SpeciesKey   TEXT NOT NULL CHECK (SpeciesKey IN ('deer', 'elk', 'pronghorn')),
+    HuntCode     TEXT,
+    PurchaseDate TEXT,
+    Notes        TEXT,
+    CreatedAt    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_MyHuntLeftoverPurchases_Species ON MyHuntLeftoverPurchases (SeasonYear, SpeciesKey);

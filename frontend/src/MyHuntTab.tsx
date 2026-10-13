@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchMyHuntPlans, saveMyHuntPlan, type DrawResult, type MyHuntPlan } from "./services/myHuntApi";
+import {
+    fetchMyHuntPlans, saveMyHuntPlan, addLeftoverPurchase, saveLeftoverPurchase, deleteLeftoverPurchase,
+    type DrawResult, type MyHuntPlan, type LeftoverPurchase,
+} from "./services/myHuntApi";
 
 const SPECIES: { key: MyHuntPlan["speciesKey"]; label: string }[] = [
     { key: "deer", label: "Deer" },
@@ -35,6 +38,21 @@ const inputStyle: React.CSSProperties = {
 const selectStyle: React.CSSProperties = { ...inputStyle };
 const textareaStyle: React.CSSProperties = { ...inputStyle, minHeight: 50, resize: "vertical" };
 const checkboxWrapStyle: React.CSSProperties = { display: "flex", alignItems: "center", height: 28 };
+
+const leftoverCardStyle: React.CSSProperties = {
+    border: "1px solid #2a2a2a", borderRadius: 6, padding: 8, marginBottom: 8,
+    display: "flex", flexDirection: "column", gap: 6,
+};
+const leftoverCardRowStyle: React.CSSProperties = { display: "flex", gap: 6, alignItems: "center" };
+const leftoverHuntCodeInputStyle: React.CSSProperties = { ...inputStyle, width: "auto", flex: "1 1 0%", minWidth: 0 };
+const removeButtonStyle: React.CSSProperties = {
+    background: "transparent", border: "1px solid #2a2a2a", borderRadius: 4, color: "#94a3b8",
+    width: 24, height: 24, flexShrink: 0, cursor: "pointer", fontSize: 13, lineHeight: 1,
+};
+const addButtonStyle: React.CSSProperties = {
+    background: "transparent", border: "1px dashed #2a2a2a", borderRadius: 4, color: "#64748b",
+    padding: "5px 8px", fontSize: 12, cursor: "pointer", width: "100%",
+};
 
 const DRAW_RESULT_OPTIONS: { value: DrawResult; label: string }[] = [
     { value: "pending", label: "Pending" },
@@ -90,6 +108,47 @@ export function MyHuntTab() {
             return { ...prev, [speciesKey]: next };
         });
     }, [scheduleSave]);
+
+    const handleAddLeftover = useCallback((speciesKey: string) => {
+        addLeftoverPurchase(year, speciesKey)
+            .then(created => {
+                setPlans(prev => {
+                    if (!prev) return prev;
+                    const next = { ...prev[speciesKey], leftoverPurchases: [...prev[speciesKey].leftoverPurchases, created] };
+                    return { ...prev, [speciesKey]: next };
+                });
+            })
+            .catch(() => setStatus(s => ({ ...s, [speciesKey]: "error" })));
+    }, [year]);
+
+    const updateLeftoverField = useCallback((speciesKey: string, id: number, field: keyof LeftoverPurchase, value: string) => {
+        setPlans(prev => {
+            if (!prev) return prev;
+            const purchases = prev[speciesKey].leftoverPurchases.map(p => p.id === id ? { ...p, [field]: value } : p);
+            const next = { ...prev[speciesKey], leftoverPurchases: purchases };
+
+            const timerKey = `leftover:${id}`;
+            setStatus(s => ({ ...s, [speciesKey]: "saving" }));
+            if (debounceTimers.current[timerKey]) clearTimeout(debounceTimers.current[timerKey]);
+            const updated = purchases.find(p => p.id === id)!;
+            debounceTimers.current[timerKey] = setTimeout(() => {
+                saveLeftoverPurchase(id, { huntCode: updated.huntCode, purchaseDate: updated.purchaseDate, notes: updated.notes })
+                    .then(() => setStatus(s => ({ ...s, [speciesKey]: "saved" })))
+                    .catch(() => setStatus(s => ({ ...s, [speciesKey]: "error" })));
+            }, 500);
+
+            return { ...prev, [speciesKey]: next };
+        });
+    }, []);
+
+    const handleRemoveLeftover = useCallback((speciesKey: string, id: number) => {
+        setPlans(prev => {
+            if (!prev) return prev;
+            const next = { ...prev[speciesKey], leftoverPurchases: prev[speciesKey].leftoverPurchases.filter(p => p.id !== id) };
+            return { ...prev, [speciesKey]: next };
+        });
+        deleteLeftoverPurchase(id).catch(() => setStatus(s => ({ ...s, [speciesKey]: "error" })));
+    }, []);
 
     if (error) return <div style={{ padding: 24, color: "#ef4444" }}>{error}</div>;
     if (plans == null) return <div style={{ padding: 24, color: "#94a3b8" }}>Loading…</div>;
@@ -249,56 +308,45 @@ export function MyHuntTab() {
                             ))}
                         </tr>
 
-                        <tr><td colSpan={SPECIES.length + 1} style={groupRowStyle}>Leftover License</td></tr>
-                        <tr>
-                            <td style={tdLabelStyle}>Hunt Code</td>
-                            {SPECIES.map(s => (
-                                <td key={s.key} style={tdStyle}>
-                                    <input
-                                        style={inputStyle}
-                                        value={plans[s.key].leftoverHuntCode}
-                                        onChange={e => updateField(s.key, "leftoverHuntCode", e.target.value)}
-                                    />
-                                </td>
-                            ))}
-                        </tr>
-                        <tr>
-                            <td style={tdLabelStyle}>Purchased</td>
-                            {SPECIES.map(s => (
-                                <td key={s.key} style={tdStyle}>
-                                    <div style={checkboxWrapStyle}>
-                                        <input
-                                            type="checkbox"
-                                            checked={plans[s.key].leftoverPurchased}
-                                            onChange={e => updateField(s.key, "leftoverPurchased", e.target.checked)}
-                                        />
-                                    </div>
-                                </td>
-                            ))}
-                        </tr>
-                        <tr>
-                            <td style={tdLabelStyle}>Purchase Date</td>
-                            {SPECIES.map(s => (
-                                <td key={s.key} style={tdStyle}>
-                                    <input
-                                        type="date"
-                                        style={inputStyle}
-                                        value={plans[s.key].leftoverPurchaseDate}
-                                        onChange={e => updateField(s.key, "leftoverPurchaseDate", e.target.value)}
-                                    />
-                                </td>
-                            ))}
-                        </tr>
+                        <tr><td colSpan={SPECIES.length + 1} style={groupRowStyle}>Leftover / OTC Tags</td></tr>
                         <tr style={{ borderBottom: "1px solid #1f1f1f" }}>
-                            <td style={tdLabelStyle}>Leftover Notes</td>
+                            <td style={tdLabelStyle}>
+                                List A/B hunts can let you hold more than one tag for the same species, so this is a list -- add one card per leftover or OTC tag you pick up.
+                            </td>
                             {SPECIES.map(s => (
                                 <td key={s.key} style={tdStyle}>
-                                    <input
-                                        style={inputStyle}
-                                        value={plans[s.key].leftoverNotes}
-                                        placeholder="e.g. sold out by 9:05 a.m."
-                                        onChange={e => updateField(s.key, "leftoverNotes", e.target.value)}
-                                    />
+                                    {plans[s.key].leftoverPurchases.map(p => (
+                                        <div key={p.id} style={leftoverCardStyle}>
+                                            <div style={leftoverCardRowStyle}>
+                                                <input
+                                                    style={leftoverHuntCodeInputStyle}
+                                                    value={p.huntCode}
+                                                    placeholder="Hunt code"
+                                                    onChange={e => updateLeftoverField(s.key, p.id, "huntCode", e.target.value)}
+                                                />
+                                                <input
+                                                    type="date"
+                                                    style={{ ...inputStyle, width: 130, flexShrink: 0 }}
+                                                    value={p.purchaseDate}
+                                                    onChange={e => updateLeftoverField(s.key, p.id, "purchaseDate", e.target.value)}
+                                                />
+                                                <button
+                                                    style={removeButtonStyle}
+                                                    onClick={() => handleRemoveLeftover(s.key, p.id)}
+                                                    title="Remove this tag"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                            <input
+                                                style={inputStyle}
+                                                value={p.notes}
+                                                placeholder="e.g. sold out by 9:05 a.m."
+                                                onChange={e => updateLeftoverField(s.key, p.id, "notes", e.target.value)}
+                                            />
+                                        </div>
+                                    ))}
+                                    <button style={addButtonStyle} onClick={() => handleAddLeftover(s.key)}>+ Add Leftover Tag</button>
                                 </td>
                             ))}
                         </tr>

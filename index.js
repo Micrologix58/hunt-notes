@@ -93,8 +93,8 @@ function defaultMyHuntPlan(seasonYear, speciesKey) {
         primaryDrawResult: "pending", primaryDrawnHuntCode: "",
         secondaryChoiceHuntCode: "",
         secondaryDrawResult: "pending", secondaryDrawnHuntCode: "",
-        leftoverHuntCode: "", leftoverPurchased: false, leftoverPurchaseDate: "", leftoverNotes: "",
         notes: "", updatedAt: null,
+        leftoverPurchases: [],
     };
 }
 
@@ -111,12 +111,19 @@ function rowToMyHuntPlan(row) {
         secondaryChoiceHuntCode: row.SecondaryChoiceHuntCode ?? "",
         secondaryDrawResult: row.SecondaryDrawResult,
         secondaryDrawnHuntCode: row.SecondaryDrawnHuntCode ?? "",
-        leftoverHuntCode: row.LeftoverHuntCode ?? "",
-        leftoverPurchased: !!row.LeftoverPurchased,
-        leftoverPurchaseDate: row.LeftoverPurchaseDate ?? "",
-        leftoverNotes: row.LeftoverNotes ?? "",
         notes: row.Notes ?? "",
         updatedAt: row.UpdatedAt,
+    };
+}
+
+function rowToLeftoverPurchase(row) {
+    return {
+        id: row.MyHuntLeftoverPurchaseID,
+        seasonYear: row.SeasonYear,
+        speciesKey: row.SpeciesKey,
+        huntCode: row.HuntCode ?? "",
+        purchaseDate: row.PurchaseDate ?? "",
+        notes: row.Notes ?? "",
     };
 }
 
@@ -127,13 +134,11 @@ const upsertMyHuntPlanStmt = db.prepare(`
         SeasonYear, SpeciesKey, IsTargeted, HasApplied,
         PrimaryChoice1HuntCode, PrimaryChoice2HuntCode, PrimaryDrawResult, PrimaryDrawnHuntCode,
         SecondaryChoiceHuntCode, SecondaryDrawResult, SecondaryDrawnHuntCode,
-        LeftoverHuntCode, LeftoverPurchased, LeftoverPurchaseDate, LeftoverNotes,
         Notes, UpdatedAt
     ) VALUES (
         @seasonYear, @speciesKey, @isTargeted, @hasApplied,
         @primaryChoice1HuntCode, @primaryChoice2HuntCode, @primaryDrawResult, @primaryDrawnHuntCode,
         @secondaryChoiceHuntCode, @secondaryDrawResult, @secondaryDrawnHuntCode,
-        @leftoverHuntCode, @leftoverPurchased, @leftoverPurchaseDate, @leftoverNotes,
         @notes, CURRENT_TIMESTAMP
     )
     ON CONFLICT (SeasonYear, SpeciesKey) DO UPDATE SET
@@ -146,16 +151,27 @@ const upsertMyHuntPlanStmt = db.prepare(`
         SecondaryChoiceHuntCode = excluded.SecondaryChoiceHuntCode,
         SecondaryDrawResult = excluded.SecondaryDrawResult,
         SecondaryDrawnHuntCode = excluded.SecondaryDrawnHuntCode,
-        LeftoverHuntCode = excluded.LeftoverHuntCode,
-        LeftoverPurchased = excluded.LeftoverPurchased,
-        LeftoverPurchaseDate = excluded.LeftoverPurchaseDate,
-        LeftoverNotes = excluded.LeftoverNotes,
         Notes = excluded.Notes,
         UpdatedAt = CURRENT_TIMESTAMP
 `);
 
+const listLeftoverPurchasesStmt = db.prepare(`
+    SELECT * FROM MyHuntLeftoverPurchases WHERE SeasonYear = ? AND SpeciesKey = ? ORDER BY MyHuntLeftoverPurchaseID
+`);
+const getLeftoverPurchaseStmt = db.prepare(`SELECT * FROM MyHuntLeftoverPurchases WHERE MyHuntLeftoverPurchaseID = ?`);
+const insertLeftoverPurchaseStmt = db.prepare(`
+    INSERT INTO MyHuntLeftoverPurchases (SeasonYear, SpeciesKey, HuntCode, PurchaseDate, Notes)
+    VALUES (@seasonYear, @speciesKey, @huntCode, @purchaseDate, @notes)
+`);
+const updateLeftoverPurchaseStmt = db.prepare(`
+    UPDATE MyHuntLeftoverPurchases SET HuntCode = @huntCode, PurchaseDate = @purchaseDate, Notes = @notes
+    WHERE MyHuntLeftoverPurchaseID = @id
+`);
+const deleteLeftoverPurchaseStmt = db.prepare(`DELETE FROM MyHuntLeftoverPurchases WHERE MyHuntLeftoverPurchaseID = ?`);
+
 // GET /api/my-hunt/plans?year=2027 -- always returns one entry per tracked
-// species (deer/elk/pronghorn), defaulted blank if nothing's been saved yet.
+// species (deer/elk/pronghorn), defaulted blank if nothing's been saved yet,
+// each with its list of leftover/OTC purchases (0 or more).
 app.get("/api/my-hunt/plans", (req, res) => {
     try {
         const seasonYear = req.query.year ? Number(req.query.year) : new Date().getFullYear();
@@ -165,7 +181,9 @@ app.get("/api/my-hunt/plans", (req, res) => {
 
         const data = MY_HUNT_SPECIES.map(speciesKey => {
             const row = getMyHuntPlanStmt.get(seasonYear, speciesKey);
-            return row ? rowToMyHuntPlan(row) : defaultMyHuntPlan(seasonYear, speciesKey);
+            const plan = row ? rowToMyHuntPlan(row) : defaultMyHuntPlan(seasonYear, speciesKey);
+            plan.leftoverPurchases = listLeftoverPurchasesStmt.all(seasonYear, speciesKey).map(rowToLeftoverPurchase);
+            return plan;
         });
 
         res.json({ success: true, data });
@@ -210,17 +228,83 @@ app.put("/api/my-hunt/plans/:speciesKey", (req, res) => {
             secondaryChoiceHuntCode: merged.secondaryChoiceHuntCode || null,
             secondaryDrawResult: merged.secondaryDrawResult,
             secondaryDrawnHuntCode: merged.secondaryDrawnHuntCode || null,
-            leftoverHuntCode: merged.leftoverHuntCode || null,
-            leftoverPurchased: merged.leftoverPurchased ? 1 : 0,
-            leftoverPurchaseDate: merged.leftoverPurchaseDate || null,
-            leftoverNotes: merged.leftoverNotes || null,
             notes: merged.notes || null,
         });
 
         const saved = rowToMyHuntPlan(getMyHuntPlanStmt.get(seasonYear, speciesKey));
+        saved.leftoverPurchases = listLeftoverPurchasesStmt.all(seasonYear, speciesKey).map(rowToLeftoverPurchase);
         res.json({ success: true, data: saved });
     } catch (err) {
         console.error("PUT /api/my-hunt/plans/:speciesKey error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// POST /api/my-hunt/leftover-purchases -- add a leftover/OTC tag for a
+// species/year. Unbounded: List A/B hunts can let you hold more than one
+// tag for the same species in the same year (see schema.sql).
+app.post("/api/my-hunt/leftover-purchases", (req, res) => {
+    try {
+        const body = req.body || {};
+        const seasonYear = Number(body.seasonYear);
+        const speciesKey = String(body.speciesKey || "");
+
+        if (!MY_HUNT_SPECIES.includes(speciesKey)) {
+            return res.status(400).json({ success: false, error: `speciesKey must be one of: ${MY_HUNT_SPECIES.join(", ")}` });
+        }
+        if (!Number.isInteger(seasonYear)) {
+            return res.status(400).json({ success: false, error: "seasonYear must be an integer" });
+        }
+
+        const info = insertLeftoverPurchaseStmt.run({
+            seasonYear,
+            speciesKey,
+            huntCode: body.huntCode || null,
+            purchaseDate: body.purchaseDate || null,
+            notes: body.notes || null,
+        });
+
+        const saved = rowToLeftoverPurchase(getLeftoverPurchaseStmt.get(info.lastInsertRowid));
+        res.json({ success: true, data: saved });
+    } catch (err) {
+        console.error("POST /api/my-hunt/leftover-purchases error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// PUT /api/my-hunt/leftover-purchases/:id -- edit huntCode/purchaseDate/notes.
+app.put("/api/my-hunt/leftover-purchases/:id", (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const existing = getLeftoverPurchaseStmt.get(id);
+        if (!existing) {
+            return res.status(404).json({ success: false, error: "Leftover purchase not found" });
+        }
+
+        const body = req.body || {};
+        updateLeftoverPurchaseStmt.run({
+            id,
+            huntCode: body.huntCode || null,
+            purchaseDate: body.purchaseDate || null,
+            notes: body.notes || null,
+        });
+
+        const saved = rowToLeftoverPurchase(getLeftoverPurchaseStmt.get(id));
+        res.json({ success: true, data: saved });
+    } catch (err) {
+        console.error("PUT /api/my-hunt/leftover-purchases/:id error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// DELETE /api/my-hunt/leftover-purchases/:id
+app.delete("/api/my-hunt/leftover-purchases/:id", (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        deleteLeftoverPurchaseStmt.run(id);
+        res.json({ success: true });
+    } catch (err) {
+        console.error("DELETE /api/my-hunt/leftover-purchases/:id error:", err);
         res.status(500).json({ success: false, error: err.message });
     }
 });

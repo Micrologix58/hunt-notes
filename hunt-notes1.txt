@@ -5,3 +5,55 @@ I would like to create a db and app for my hunting exploits, and try to improve 
 I would like to set it up on the same server as the commodities app and use the same db technology with SQLLite, which has been working well.
 
 For the home tab, I'd like to put the important dates for drawings, seasons, by game.  On the top section, include the main dates for primary and secondary draw, and the seasonal dates, like the columns on page 2 of the hunting guide.  So Lets have columns for Deer, Elk, Pronghorn, we can leave moose and bear out.  Also add colums for small game including rabbit, dove, blue grouse, sage grouse, sharp-tail grouse and pheasant.  For each small game, include the hunting seasons, bag and possession.  
+
+Stack: same as the commodities app — Express + better-sqlite3 backend, React/TS/Vite frontend, dark theme to match. Backend on port 4100, frontend dev server on 5180 (proxies /api).
+
+Run it:
+cd hunt-notes && npm install && npm run db:init && npm run dev     # backend
+cd hunt-notes/frontend && npm install && npm run dev               # frontend
+
+Home tab has two tables, built from the 2026 CPW brochures already sitting in Docs/ (I extracted the real text, not guessed values):
+
+- Big Game — Deer / Elk / Pronghorn columns, with Primary Draw and Secondary Draw date blocks (applications open, deadline, results, surrender, payment, licenses mailed), then Season Dates (Archery, Muzzleloader, First–Fourth Rifle, Plains Rifle). Blank cells where a row doesn't apply (e.g. Pronghorn has no numbered rifle seasons, just one "Rifle" row).
+- Small Game — Rabbit / Dove / Blue Grouse / Sage Grouse / Sharp-Tail Grouse / Pheasant columns, each with Season / Daily Bag Limit / Possession Limit rows. Species with split seasons (Sage Grouse's regular + North Park, Pheasant's east/west) show each season stacked with its own area note.
+
+One deliberate design call worth flagging: draw dates aren't duplicated per-species in the database — Colorado runs one unified application process for deer/elk/pronghorn, so I store that calendar once and the Home tab just repeats it under all three columns. If you'd rather see it separated out differently, easy to change.
+
+I verified this isn't just "builds clean" — I actually launched both servers and screenshotted the rendered Home tab (see above) to confirm the tables lay out correctly with real data flowing through SQLite → API → React.
+
+Set up for next year: dropped a README with exactly how to refresh the seed data each year when CPW publishes new brochures, since that's the one recurring task this app will need.
+
+Initialized as its own git repo (matching how ratio-charts-sqlite is set up) with two commits — not pushed anywhere since there's no remote configured yet. Let me know if you want one added, or want me to start on the next tab (hunt log, GMU research, etc.).
+
+ Big Game table now has 4 columns: Mule Deer | Whitetail | Elk | Pronghorn
+- Whitetail column is seeded from GMU 103 (Plains) hunt codes, exactly as you pointed to:
+  - Archery (p.24): Oct. 1–23 / Nov. 4–30 / Dec. 15–31
+  - Muzzleloader (p.26): Oct. 10–18
+  - Rifle (p.30): Plains Oct. 24–Nov. 3 + a new Late Rifle row Dec. 1–14 (Mule Deer/Elk/Pronghorn show blank there, since that window is specific to this unit)
+  - Each row has a note (shown on hover) citing the hunt code, since whitetail dates vary a lot by unit and I didn't want that context lost
+- Verified via screenshot — multi-line archery dates render correctly, blank cells line up right.
+
+One thing worth knowing: since whitetail dates vary heavily by GMU, this column reflects one example unit (103), not a brochure-wide summary the way the other three columns are. If you hunt whitetail in a different unit, the dates to swap in are in sql/seed_2026.sql — I noted that in the README too.
+
+Quick clarification before I build this — Colorado's draw rule is one application per species per draw per year, and CPW treats "Deer" as a single species for that purpose (mule deer vs. whitetail is just which GMU/hunt code you pick within that one deer application, not two separate applications). Since My Hunt will track actual applications, I want to make sure the data model matches reality rather than implying you can file two deer applications.
+
+What's there
+
+Same column layout as Home (Deer | Elk | Pronghorn), fully editable, autosaves as you type (debounced, with a "Saving…/Saved" indicator next to each species header):
+
+- Target This Year / Applied — checkboxes
+- Primary Draw — Choice 1 & 2 hunt codes, a Draw Result dropdown (Pending/Drawn/Not Drawn), and the Hunt Code Drawn
+- Secondary Draw — same shape, single choice field
+- Leftover License — hunt code, Purchased checkbox, purchase date, and a notes field
+- General Notes — freeform per species
+
+A year selector (‹ 2027 ›) sits top-right, defaulting to 2027 since 2026's draw windows have already closed — you can page back to 2026 to log what actually happened this year if you want a record of it.
+
+Design calls worth knowing about
+
+1. Deer is one combined row, not split into Mule Deer/Whitetail — per your answer, since CPW only allows one deer application per year regardless of which GMU you target.
+2. Nothing is pre-seeded. Rows only get created in the DB when you actually type something, so re-running npm run db:init later (e.g. after a future schema change) can never wipe your entries — it's structurally separate from the brochure data's destructive refresh.
+3. No "Save" button — every field saves itself ~500ms after you stop typing. I verified this with a scripted browser test (filled every Elk field, confirmed "Saved," reloaded, confirmed the row was still in SQLite).
+4. One known rough edge: there's no URL routing yet, so a full page reload always lands back on the Home tab (your saved data isn't affected, just which tab is showing). Easy to fix later if it bugs you.
+
+

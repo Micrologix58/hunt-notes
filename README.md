@@ -88,3 +88,13 @@ year (usually Feb/March). To refresh:
   species header. Switching tabs or reloading the page does not lose
   data, but reloading the page does reset which tab is showing (Home)
   since there's no URL routing yet.
+- **Leftover/OTC tags are an unbounded list per species/year**
+  (`MyHuntLeftoverPurchases`), not columns on `MyHuntPlans`. CPW's "one
+  license per species, per draw" limit applies only to the primary and
+  secondary *draws* -- a Leftover/OTC purchase isn't a draw, and List
+  A/B hunts can let you hold more than one tag for the same species in
+  the same year (e.g. a drawn List A archery tag plus a purchased List
+  B rifle tag in an adjacent unit, or even two List B leftover
+  purchases). Primary Draw and Secondary Draw stay single-valued on
+  `MyHuntPlans`, since CPW really does award at most one license per
+  species per draw.
