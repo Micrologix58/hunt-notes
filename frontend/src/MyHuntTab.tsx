@@ -21,15 +21,16 @@ const panelStyle: React.CSSProperties = {
 };
 const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13 };
 const thStyle: React.CSSProperties = {
-    textAlign: "left", padding: "6px 10px", color: "#94a3b8", fontWeight: 600,
-    borderBottom: "1px solid #2a2a2a", whiteSpace: "nowrap",
+    textAlign: "left", padding: "6px 16px", color: "#94a3b8", fontWeight: 600,
+    borderBottom: "1px solid #2a2a2a", whiteSpace: "nowrap", minWidth: 200,
 };
 const groupRowStyle: React.CSSProperties = {
     color: "#3b82f6", fontWeight: 700, fontSize: 12, textTransform: "uppercase",
     letterSpacing: "0.04em", paddingTop: 14, paddingBottom: 4,
 };
-const tdLabelStyle: React.CSSProperties = { padding: "6px 10px", color: "#94a3b8", whiteSpace: "nowrap", verticalAlign: "top" };
-const tdStyle: React.CSSProperties = { padding: "4px 10px" };
+const tdLabelStyle: React.CSSProperties = { padding: "6px 14px 6px 10px", color: "#94a3b8", whiteSpace: "nowrap", verticalAlign: "top" };
+const tdWrapLabelStyle: React.CSSProperties = { ...tdLabelStyle, whiteSpace: "normal", maxWidth: 160 };
+const tdStyle: React.CSSProperties = { padding: "4px 16px", minWidth: 200 };
 
 const inputStyle: React.CSSProperties = {
     width: "100%", boxSizing: "border-box", background: "#0d0d0d", border: "1px solid #2a2a2a",
@@ -154,7 +155,7 @@ export function MyHuntTab() {
     if (plans == null) return <div style={{ padding: 24, color: "#94a3b8" }}>Loading…</div>;
 
     return (
-        <div style={{ padding: "20px 24px", maxWidth: 1000 }}>
+        <div style={{ padding: "20px 24px", maxWidth: 1100 }}>
             <div style={panelStyle}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                     <h3 style={{ color: "#e2e8f0", margin: 0 }}>My Hunt -- {year}</h3>
@@ -173,10 +174,11 @@ export function MyHuntTab() {
                     Target the hunts you're planning, track your application choices, and log what actually happened in each draw. Saves automatically as you type.
                 </div>
 
+                <div style={{ overflowX: "auto" }}>
                 <table style={tableStyle}>
                     <thead>
                         <tr>
-                            <th style={thStyle}></th>
+                            <th style={{ ...thStyle, minWidth: 0 }}></th>
                             {SPECIES.map(s => (
                                 <th key={s.key} style={thStyle}>
                                     {s.label}
@@ -310,8 +312,8 @@ export function MyHuntTab() {
 
                         <tr><td colSpan={SPECIES.length + 1} style={groupRowStyle}>Leftover / OTC Tags</td></tr>
                         <tr style={{ borderBottom: "1px solid #1f1f1f" }}>
-                            <td style={tdLabelStyle}>
-                                List A/B hunts can let you hold more than one tag for the same species, so this is a list -- add one card per leftover or OTC tag you pick up.
+                            <td style={tdWrapLabelStyle}>
+                                Tags (one card each -- List A/B can mean more than one per species)
                             </td>
                             {SPECIES.map(s => (
                                 <td key={s.key} style={tdStyle}>
@@ -366,6 +368,7 @@ export function MyHuntTab() {
                         </tr>
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     );

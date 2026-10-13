@@ -13,7 +13,7 @@ function App() {
                 <h1 style={{ color: "#e2e8f0", margin: "0 0 10px", fontSize: 20 }}>🏔️ Hunt Notes</h1>
             </div>
             <TabBar activeTab={activeTab} onChange={setActiveTab} />
-            <div style={{ flex: 1, overflow: "auto" }}>
+            <div style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
                 {activeTab === "home" && <HomeTab />}
                 {activeTab === "myhunt" && <MyHuntTab />}
                 {activeTab === "access" && <AccessTab />}
