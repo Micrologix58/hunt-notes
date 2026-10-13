@@ -70,3 +70,21 @@ year (usually Feb/March). To refresh:
   unit's hunt codes (brochure pages 24/26/30) rather than a brochure
   summary table. Swap in a different unit's dates in `seed_2026.sql`
   if a different example area is more useful to you.
+- **My Hunt tracks "Deer" as one combined species**, not separate
+  Mule Deer/Whitetail rows like the Home tab. CPW only allows one deer
+  application per draw per year -- which GMU/hunt code you pick decides
+  whether it's effectively a mule deer or whitetail hunt, but it's a
+  single application -- so `MyHuntPlans.SpeciesKey` is its own small
+  `deer`/`elk`/`pronghorn` list, independent of the Home tab's `Species`
+  table (which exists for season-date display, not application
+  tracking).
+- **My Hunt rows are created on demand**, not pre-seeded -- `GET
+  /api/my-hunt/plans` always returns one entry per tracked species,
+  defaulted blank if nothing's been saved. That keeps this table
+  completely outside `seed_2026.sql`'s delete-and-reload pattern, so
+  re-running `db:init` can never wipe anything you've entered.
+- **My Hunt has no tab-level "Save" button** -- each field autosaves
+  (debounced ~500ms) with a small Saving…/Saved indicator next to the
+  species header. Switching tabs or reloading the page does not lose
+  data, but reloading the page does reset which tab is showing (Home)
+  since there's no URL routing yet.

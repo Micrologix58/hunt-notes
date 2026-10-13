@@ -62,3 +62,50 @@ CREATE TABLE IF NOT EXISTS SmallGameSeasonDates (
 
 CREATE INDEX IF NOT EXISTS idx_BigGameSeasonDates_Species ON BigGameSeasonDates (SeasonYear, SpeciesID);
 CREATE INDEX IF NOT EXISTS idx_SmallGameSeasonDates_Species ON SmallGameSeasonDates (SeasonYear, SpeciesID);
+
+-- My Hunt tab: personal application tracking, one row per species per year.
+--
+-- SpeciesKey here is deliberately its own small CHECK-constrained list, not
+-- a FK to Species. CPW allows exactly one "Deer" application per draw per
+-- year -- mule deer vs. whitetail is just which GMU/hunt code you pick
+-- within that one application, not two separate applications -- so this
+-- table has a single combined 'deer' row, unlike the Home tab's Species
+-- table, which splits mule_deer/whitetail_deer for season-date display.
+--
+-- Rows are created on demand (upserted) when the user edits a field, not
+-- pre-seeded, so this table is never touched by sql/seed_2026.sql's
+-- delete-and-reload-from-brochure pattern -- a schema re-init can never
+-- wipe the user's own application data.
+CREATE TABLE IF NOT EXISTS MyHuntPlans (
+    MyHuntPlanID INTEGER PRIMARY KEY,
+    SeasonYear   INTEGER NOT NULL,
+    SpeciesKey   TEXT NOT NULL CHECK (SpeciesKey IN ('deer', 'elk', 'pronghorn')),
+
+    IsTargeted   INTEGER NOT NULL DEFAULT 0 CHECK (IsTargeted IN (0, 1)),
+    HasApplied   INTEGER NOT NULL DEFAULT 0 CHECK (HasApplied IN (0, 1)),
+
+    -- Primary draw. CPW allows up to 4 ranked choices per application --
+    -- this only tracks the first two.
+    PrimaryChoice1HuntCode TEXT,
+    PrimaryChoice2HuntCode TEXT,
+    PrimaryDrawResult      TEXT NOT NULL DEFAULT 'pending'
+        CHECK (PrimaryDrawResult IN ('pending', 'drawn', 'not_drawn')),
+    PrimaryDrawnHuntCode   TEXT,                    -- hunt code actually drawn, if any
+
+    -- Secondary draw.
+    SecondaryChoiceHuntCode TEXT,
+    SecondaryDrawResult     TEXT NOT NULL DEFAULT 'pending'
+        CHECK (SecondaryDrawResult IN ('pending', 'drawn', 'not_drawn')),
+    SecondaryDrawnHuntCode  TEXT,
+
+    -- Leftover license purchase.
+    LeftoverHuntCode     TEXT,
+    LeftoverPurchased    INTEGER NOT NULL DEFAULT 0 CHECK (LeftoverPurchased IN (0, 1)),
+    LeftoverPurchaseDate TEXT,
+    LeftoverNotes        TEXT,
+
+    Notes     TEXT,
+    UpdatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (SeasonYear, SpeciesKey)
+);
