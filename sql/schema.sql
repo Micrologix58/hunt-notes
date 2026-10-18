@@ -266,15 +266,20 @@ CREATE INDEX IF NOT EXISTS idx_HuntCodeDrawPoints_Code ON HuntCodeDrawPoints (Hu
 -- are this app's own invention (a stable key + a human-readable
 -- description good enough to relocate the parcel in the atlas or onX),
 -- not brochure text. See README's "Updating Walk-In Atlas data" section.
+-- GMU 103/109 (the first pass) are one row per individual shaded shape;
+-- everywhere else, a row is a *cluster* of same-type adjoining shapes near
+-- one landmark (ParcelCount holds the approximate shape count) -- full
+-- statewide coverage at one-row-per-shape wasn't tractable by hand.
 CREATE TABLE IF NOT EXISTS WalkInAreas (
     WalkInAreaID INTEGER PRIMARY KEY,
     SeasonYear   INTEGER NOT NULL,                    -- atlas edition, e.g. 2026
     Slug         TEXT NOT NULL,                        -- stable id, e.g. 'yuma-109-kirk-1'
     Label        TEXT NOT NULL,                        -- short human label, e.g. 'N of Kirk (large)'
     County       TEXT NOT NULL,
-    GMU          INTEGER NOT NULL,
+    GMU          INTEGER,                                -- null on the handful of western-slope pages that don't overlay GMU lines
     BigGame      INTEGER NOT NULL DEFAULT 0 CHECK (BigGame IN (0, 1)),  -- yellow on the map; 0 = white (small game only)
     LandType     TEXT,                                 -- 'Grass' | 'Corn' | 'Wheat' | 'Other', from the map's G/C/W/O letter
+    ParcelCount  INTEGER NOT NULL DEFAULT 1,            -- adjoining same-type shapes this row groups together (see README)
     Locator      TEXT,                                 -- approximate township/range and/or nearest town, read off the map
     SourcePage   INTEGER,                               -- printed atlas page number, for traceability
     Owner        TEXT,                                 -- user-filled, e.g. from onX Hunt's landowner layer

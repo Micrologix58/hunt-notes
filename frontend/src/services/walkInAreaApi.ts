@@ -4,9 +4,10 @@ export type WalkInArea = {
     slug: string;
     label: string;
     county: string;
-    gmu: number;
+    gmu: number | null;
     bigGame: boolean;
     landType: string;
+    parcelCount: number;
     locator: string;
     sourcePage: number | null;
     owner: string;

@@ -38,9 +38,37 @@ function addMyHuntPlansPreferencePoints(db) {
     console.log("Migration: added MyHuntPlans.CurrentPreferencePoints.");
 }
 
+// WalkInAreas.GMU started NOT NULL, but a handful of western-slope atlas
+// pages (e.g. Mesa County) don't overlay GMU boundary lines at all, so
+// there's nothing to decode for those parcels. SQLite can't drop a NOT
+// NULL constraint via ALTER TABLE -- drop and let schema.sql recreate it
+// nullable; safe because this table only ever held the first Walk-In
+// pass's reference data (GMU 103/109), reimported via
+// scripts/import_walkin_areas.js, not user-entered data.
+function makeWalkInAreasGmuNullable(db) {
+    if (!hasTable(db, "WalkInAreas")) return;
+    const gmuCol = db.prepare(`PRAGMA table_info(WalkInAreas)`).all().find(c => c.name === "GMU");
+    if (!gmuCol || gmuCol.notnull === 0) return;
+    db.exec(`DROP TABLE WalkInAreas`);
+    console.log("Migration: dropped WalkInAreas to recreate GMU as nullable (re-run scripts/import_walkin_areas.js after this).");
+}
+
+// Adds the adjoining-shapes-per-row count to an already-existing
+// WalkInAreas table (new installs get it straight from schema.sql's
+// CREATE). Needed once statewide coverage moved from one row per shaded
+// shape (GMU 103/109) to one row per cluster of shapes everywhere else.
+function addWalkInAreasParcelCount(db) {
+    if (!hasTable(db, "WalkInAreas")) return;
+    if (hasColumn(db, "WalkInAreas", "ParcelCount")) return;
+    db.exec(`ALTER TABLE WalkInAreas ADD COLUMN ParcelCount INTEGER NOT NULL DEFAULT 1`);
+    console.log("Migration: added WalkInAreas.ParcelCount.");
+}
+
 function runMigrations(db) {
     dropLegacyMyHuntLeftoverColumns(db);
     addMyHuntPlansPreferencePoints(db);
+    makeWalkInAreasGmuNullable(db);
+    addWalkInAreasParcelCount(db);
 }
 
 module.exports = { runMigrations };

@@ -15,14 +15,15 @@ const db = require("../db");
 const EXTRACTION_DIR = path.join(__dirname, "..", "Docs", "extraction");
 
 const upsertStmt = db.prepare(`
-    INSERT INTO WalkInAreas (SeasonYear, Slug, Label, County, GMU, BigGame, LandType, Locator, SourcePage, UpdatedAt)
-    VALUES (@seasonYear, @slug, @label, @county, @gmu, @bigGame, @landType, @locator, @sourcePage, CURRENT_TIMESTAMP)
+    INSERT INTO WalkInAreas (SeasonYear, Slug, Label, County, GMU, BigGame, LandType, ParcelCount, Locator, SourcePage, UpdatedAt)
+    VALUES (@seasonYear, @slug, @label, @county, @gmu, @bigGame, @landType, @parcelCount, @locator, @sourcePage, CURRENT_TIMESTAMP)
     ON CONFLICT (SeasonYear, Slug) DO UPDATE SET
         Label = excluded.Label,
         County = excluded.County,
         GMU = excluded.GMU,
         BigGame = excluded.BigGame,
         LandType = excluded.LandType,
+        ParcelCount = excluded.ParcelCount,
         Locator = excluded.Locator,
         SourcePage = excluded.SourcePage,
         UpdatedAt = CURRENT_TIMESTAMP
@@ -42,6 +43,7 @@ function importFile(filePath) {
                 gmu: rec.gmu,
                 bigGame: rec.bigGame ? 1 : 0,
                 landType: rec.landType || null,
+                parcelCount: rec.parcelCount == null ? 1 : rec.parcelCount,
                 locator: rec.locator || null,
                 sourcePage: rec.sourcePage == null ? null : rec.sourcePage,
             });

@@ -19,8 +19,8 @@ const inputStyle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = { color: "#64748b", fontSize: 12, marginRight: 4 };
 const tableWrapStyle: React.CSSProperties = { overflowX: "auto", border: "1px solid #2a2a2a", borderRadius: 6 };
 const COLUMN_WIDTHS = {
-    label: 220, county: 100, gmu: 60, game: 70, landType: 80, locator: 300,
-    page: 50, owner: 160, notes: 260, scouted: 70,
+    label: 220, county: 100, gmu: 60, game: 70, landType: 80, count: 50, locator: 280,
+    page: 50, owner: 160, notes: 230, scouted: 70,
 };
 const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" };
 const scoutedTdStyle: React.CSSProperties = { padding: "6px 2px", color: "#e2e8f0", verticalAlign: "top", textAlign: "center" };
@@ -42,6 +42,7 @@ export function WalkInTab() {
 
     const [search, setSearch] = useState("");
     const [gmuFilter, setGmuFilter] = useState("");
+    const [countyFilter, setCountyFilter] = useState("all");
     const [gameFilter, setGameFilter] = useState<GameFilter>("all");
     const [sortMode, setSortMode] = useState<SortMode>("gmu");
 
@@ -68,6 +69,11 @@ export function WalkInTab() {
         else debounceTimers.current[id] = setTimeout(save, 600);
     }, []);
 
+    const counties = useMemo(() => {
+        if (!areas) return [];
+        return [...new Set(areas.map(a => a.county))].sort();
+    }, [areas]);
+
     const visibleAreas = useMemo(() => {
         if (!areas) return [];
         const q = search.trim().toLowerCase();
@@ -75,16 +81,18 @@ export function WalkInTab() {
         let rows = areas.filter(a => {
             if (gameFilter === "big" && !a.bigGame) return false;
             if (gameFilter === "small" && a.bigGame) return false;
+            if (countyFilter !== "all" && a.county !== countyFilter) return false;
             if (gmuQ && String(a.gmu) !== gmuQ) return false;
             if (q && !a.label.toLowerCase().includes(q) && !a.county.toLowerCase().includes(q) && !a.locator.toLowerCase().includes(q)) return false;
             return true;
         });
         rows = [...rows].sort((a, b) => {
-            if (sortMode === "county") return a.county.localeCompare(b.county) || a.gmu - b.gmu || a.label.localeCompare(b.label);
-            return a.gmu - b.gmu || a.county.localeCompare(b.county) || a.label.localeCompare(b.label);
+            const gmuDiff = (a.gmu ?? 9999) - (b.gmu ?? 9999);
+            if (sortMode === "county") return a.county.localeCompare(b.county) || gmuDiff || a.label.localeCompare(b.label);
+            return gmuDiff || a.county.localeCompare(b.county) || a.label.localeCompare(b.label);
         });
         return rows;
-    }, [areas, search, gmuFilter, gameFilter, sortMode]);
+    }, [areas, search, gmuFilter, countyFilter, gameFilter, sortMode]);
 
     if (error) return <div style={{ padding: 24, color: "#ef4444" }}>{error}</div>;
     if (areas == null) return <div style={{ padding: 24, color: "#94a3b8" }}>Loading…</div>;
@@ -96,11 +104,13 @@ export function WalkInTab() {
                 <span style={{ color: "#64748b", fontSize: 12 }}>{visibleAreas.length} of {areas.length} parcels</span>
             </div>
             <div style={{ color: "#64748b", fontSize: 12, marginBottom: 14 }}>
-                Parcels transcribed from CPW's Regular Walk-In Atlas maps -- currently covers GMU 103 and 109 only
-                (see README to add more). The atlas has no per-property text, just shaded parcels on a map, so
-                Label/Locator are a best-effort read of each parcel's position, not a precise address -- use Locator
-                and Source Page to find it in the atlas PDF or on a map app, then fill in Owner (e.g. from onX Hunt's
-                landowner layer) and Scouted as you research each one.
+                Parcels transcribed from CPW's Regular Walk-In Atlas maps, statewide. The atlas has no per-property
+                text, just shaded parcels on a map, so Label/Locator are a best-effort read of each parcel's
+                position, not a precise address -- use Locator and Source Page to find it in the atlas PDF or on a
+                map app. Outside GMU 103/109, a row is a *cluster* of same-type adjoining parcels near one landmark
+                (see the # column) rather than one row per shape -- transcribing the whole state shape-by-shape
+                wasn't practical by hand. Fill in Owner (e.g. from onX Hunt's landowner layer) and Scouted as you
+                research each one.
             </div>
 
             <div style={controlsRowStyle}>
@@ -110,6 +120,11 @@ export function WalkInTab() {
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                 />
+                <span style={labelStyle}>County</span>
+                <select style={inputStyle} value={countyFilter} onChange={e => setCountyFilter(e.target.value)}>
+                    <option value="all">All</option>
+                    {counties.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
                 <span style={labelStyle}>GMU</span>
                 <input
                     style={{ ...inputStyle, width: 70 }}
@@ -138,6 +153,7 @@ export function WalkInTab() {
                         <col style={{ width: COLUMN_WIDTHS.gmu }} />
                         <col style={{ width: COLUMN_WIDTHS.game }} />
                         <col style={{ width: COLUMN_WIDTHS.landType }} />
+                        <col style={{ width: COLUMN_WIDTHS.count }} />
                         <col style={{ width: COLUMN_WIDTHS.locator }} />
                         <col style={{ width: COLUMN_WIDTHS.page }} />
                         <col style={{ width: COLUMN_WIDTHS.owner }} />
@@ -151,6 +167,7 @@ export function WalkInTab() {
                             <th style={thStyle}>GMU</th>
                             <th style={thStyle}>Game</th>
                             <th style={thStyle}>Land Type</th>
+                            <th style={{ ...thStyle, textAlign: "right" }} title="Approx. number of adjoining shapes grouped into this row">#</th>
                             <th style={{ ...thStyle, whiteSpace: "normal" }}>Locator</th>
                             <th style={{ ...thStyle, textAlign: "right" }} title="Atlas page">Pg.</th>
                             <th style={thStyle}>Owner</th>
@@ -165,9 +182,10 @@ export function WalkInTab() {
                                 <tr key={a.id} style={{ borderBottom: "1px solid #1f1f1f" }}>
                                     <td style={tdStyle}>{a.label}</td>
                                     <td style={tdStyle}>{a.county}</td>
-                                    <td style={tdStyle}>{a.gmu}</td>
+                                    <td style={tdStyle}>{a.gmu ?? "—"}</td>
                                     <td style={tdStyle}><span style={gameBadgeStyle(a.bigGame)}>{a.bigGame ? "Big+Small" : "Small only"}</span></td>
                                     <td style={tdStyle}>{a.landType || "—"}</td>
+                                    <td style={{ ...tdStyle, textAlign: "right" }}>{a.parcelCount}</td>
                                     <td style={tdStyle}>{a.locator || "—"}</td>
                                     <td style={{ ...tdStyle, textAlign: "right" }}>{a.sourcePage ?? "—"}</td>
                                     <td style={tdStyle}>

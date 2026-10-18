@@ -136,35 +136,71 @@ its land type, color and rough position (nearest labeled town, or
 township/range where a town isn't close enough to be useful) directly off
 the image.
 
-A few things worth knowing if you extend this:
+Two granularities exist in the data, by necessity:
+
+- **GMU 103 and 109** (the first pass, done before the full statewide
+  pass below) are transcribed **one row per shaded shape** -- the area
+  the user actually hunts, so it got full precision.
+- **Everywhere else** (the full statewide pass) is transcribed **one row
+  per cluster** of same-type adjoining shapes near one landmark, with
+  `ParcelCount` holding the approximate number of shapes grouped in --
+  some counties (Sedgwick, Phillips especially) have 50-80+ individual
+  shaded shapes on one page, and transcribing the whole state at
+  one-row-per-shape wasn't tractable by hand. A cluster row's `landType`
+  is often `'Mixed (...)'` for this reason -- it's covering several
+  shapes that aren't all the same letter.
+
+A few things worth knowing if you extend or refine this:
 
 - **Half-county maps overlap by one range column.** Several counties are
   split into "West Half"/"East Half" or "North Half"/"South Half" pages,
   and the shared boundary range (e.g. Kit Carson's R46W/R47W line) is
   drawn on *both* pages so parcels sitting on it aren't cut off. Check for
   this before transcribing a boundary-area parcel twice.
+- **Some map pages bleed into a neighboring county that has no page of
+  its own.** Lincoln County isn't in this atlas edition at all, but a
+  handful of its parcels are visible at the edge of the Kit Carson West
+  Half page -- those were transcribed with `county: "Lincoln"` even
+  though the `sourcePage` is Kit Carson's.
+- **Blue-shaded areas are State Trust Lands, not Walk-In parcels** -- a
+  different CPW program with its own legend entry on the Crowley/Otero,
+  Bent and Prowers pages (Blue Lake, Timberlake, La Junta, Whiterock
+  STL). Some of these are already covered by the Access tab's own
+  brochure-sourced data; don't double-count them here. Also watch for a
+  county line running past the *same* STL complex on two adjacent map
+  pages (Blue Lake/Timberlake appear on both the Crowley & Otero and
+  Bent County pages) -- same dedup concern as the half-county overlap.
 - **Locator is this app's own invention, not brochure text** -- there's no
   ground truth to check it against beyond the map image itself, so treat
-  it as "good enough to relocate the parcel," not a surveyed address.
-  Low-confidence reads say so directly (e.g. `landType: null` with a note
-  when a letter wasn't legible) rather than guessing.
+  it as "good enough to relocate the parcel/cluster," not a surveyed
+  address. Low-confidence reads say so directly (e.g. `landType: null`
+  with a note when a letter wasn't legible) rather than guessing.
 - **GMU boundaries (red lines) don't follow county lines**, so a given
   county's map page can show parcels in several different GMUs -- check
   which side of the nearest red GMU boundary a parcel falls on, don't
   assume the whole page is one GMU.
+- **A few western-slope pages (Mesa, Dolores) don't overlay GMU
+  boundaries at all** -- `GMU` is nullable for exactly this case, and the
+  Locator text says so explicitly rather than leaving it unexplained.
 
-To add more GMUs or counties:
+To add, split, or refine entries:
 
 1. Find the relevant page(s) in `Docs/2026 Regular Walk-In Atlas.pdf`
    (table of contents on page 2 lists each county's page number).
 2. Render and crop with `pymupdf` + Pillow (`pip install pymupdf
    Pillow`) the same way described above -- there's no script to run,
    this is a manual visual-transcription task.
-3. Append new records to `Docs/extraction/walkin_areas_2026.jsonl` (or a
-   new `walkin_areas_<year>.jsonl` for a future atlas edition, added to
-   the file list in `scripts/import_walkin_areas.js`), each with a unique
-   `slug` (used as the upsert key, so pick something stable and
-   descriptive, e.g. `'<county>-<gmu>-<nearest-town>-<n>'`).
+3. Edit `Docs/extraction/walkin_areas_2026.jsonl` (or a new
+   `walkin_areas_<year>.jsonl` for a future atlas edition, added to the
+   file list in `scripts/import_walkin_areas.js`): append new records,
+   or split an existing cluster row into finer ones (e.g. if you want to
+   upgrade a GMU from cluster-level to per-shape precision the way GMU
+   103/109 are). Each record needs a unique `slug` (the upsert key, so
+   pick something stable and descriptive, e.g.
+   `'<county>-<gmu>-<nearest-town>-<n>'`) -- if you split a cluster,
+   retire its old slug rather than reusing it for one of the new rows,
+   so a stale row doesn't linger from a renamed/removed slug (the
+   importer only upserts, it never deletes).
 4. `node scripts/import_walkin_areas.js` -- safe to re-run; upserts on
    (SeasonYear, slug) and never touches a row's Owner, Notes or Scouted
    columns.
@@ -277,15 +313,20 @@ To add more GMUs or counties:
   draw-points columns are independently nullable per hunt code for
   exactly this reason -- there's no requirement that a hunt code have
   data in every source.
-- **Walk-In Atlas coverage is intentionally narrow (GMU 103 and 109
-  only) and will stay patchy.** Unlike Draw Odds' hunt-code reports,
-  there's no way to script this extraction -- the atlas is scanned-map
-  images with no per-parcel text, so every row is a manual visual read
-  (see "Updating Walk-In Atlas data" above). Rather than attempt all
-  19 map pages at lower confidence, this first pass covers just the
-  two GMUs actually asked for, carefully cross-checked parcel by
-  parcel (including deduping parcels shown on two overlapping
-  half-county map pages) -- extend it GMU by GMU as you need more.
+- **Walk-In Atlas coverage is statewide but mixed-granularity.** Unlike
+  Draw Odds' hunt-code reports, there's no way to script this
+  extraction -- the atlas is scanned-map images with no per-parcel
+  text, so every row is a manual visual read (see "Updating Walk-In
+  Atlas data" above). GMU 103/109 (the area originally asked about) are
+  one row per shaded shape, carefully cross-checked including deduping
+  shapes shown on two overlapping half-county map pages; the rest of
+  the state is one row per *cluster* of nearby same-type shapes
+  (`ParcelCount` holds the approximate shape count) -- full
+  one-row-per-shape precision everywhere wasn't tractable by hand, and
+  a handful of counties (Sedgwick, Phillips) have 50-80+ individual
+  shapes on a single page. Upgrade a GMU to per-shape precision by
+  splitting its cluster row(s) the way GMU 103/109 already are, if and
+  when that area is worth the extra care.
 - **Owner is blank on import, by design.** The atlas doesn't name
   landowners at all -- that comes from a separate source entirely
   (e.g. onX Hunt's parcel/landowner layer). `WalkInAreas.Owner` exists

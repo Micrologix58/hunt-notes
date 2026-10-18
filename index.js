@@ -487,6 +487,7 @@ function rowToWalkInArea(row) {
         gmu: row.GMU,
         bigGame: !!row.BigGame,
         landType: row.LandType ?? "",
+        parcelCount: row.ParcelCount ?? 1,
         locator: row.Locator ?? "",
         sourcePage: row.SourcePage,
         owner: row.Owner ?? "",
