@@ -3,7 +3,7 @@ export type DrawResult = "pending" | "drawn" | "not_drawn";
 export type LeftoverPurchase = {
     id: number;
     seasonYear: number;
-    speciesKey: "deer" | "elk" | "pronghorn";
+    speciesKey: "deer" | "elk" | "pronghorn" | "bear";
     huntCode: string;
     purchaseDate: string;
     notes: string;
@@ -11,7 +11,7 @@ export type LeftoverPurchase = {
 
 export type MyHuntPlan = {
     seasonYear: number;
-    speciesKey: "deer" | "elk" | "pronghorn";
+    speciesKey: "deer" | "elk" | "pronghorn" | "bear";
     isTargeted: boolean;
     hasApplied: boolean;
     currentPreferencePoints: number | null;

@@ -79,7 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_SmallGameSeasonDates_Species ON SmallGameSeasonDa
 CREATE TABLE IF NOT EXISTS MyHuntPlans (
     MyHuntPlanID INTEGER PRIMARY KEY,
     SeasonYear   INTEGER NOT NULL,
-    SpeciesKey   TEXT NOT NULL CHECK (SpeciesKey IN ('deer', 'elk', 'pronghorn')),
+    SpeciesKey   TEXT NOT NULL CHECK (SpeciesKey IN ('deer', 'elk', 'pronghorn', 'bear')),
 
     IsTargeted   INTEGER NOT NULL DEFAULT 0 CHECK (IsTargeted IN (0, 1)),
     HasApplied   INTEGER NOT NULL DEFAULT 0 CHECK (HasApplied IN (0, 1)),
@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS MyHuntPlans (
 CREATE TABLE IF NOT EXISTS MyHuntLeftoverPurchases (
     MyHuntLeftoverPurchaseID INTEGER PRIMARY KEY,
     SeasonYear   INTEGER NOT NULL,
-    SpeciesKey   TEXT NOT NULL CHECK (SpeciesKey IN ('deer', 'elk', 'pronghorn')),
+    SpeciesKey   TEXT NOT NULL CHECK (SpeciesKey IN ('deer', 'elk', 'pronghorn', 'bear')),
     HuntCode     TEXT,
     PurchaseDate TEXT,
     Notes        TEXT,

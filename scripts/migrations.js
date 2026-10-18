@@ -159,6 +159,75 @@ function addBearToHuntCodeDrawPoints(db) {
     console.log("Migration: added 'bear' to HuntCodeDrawPoints.Species, preserving existing rows.");
 }
 
+// Same CHECK-constraint-can't-change-in-place problem as the HuntCode*
+// tables above, for the My Hunt tab's own species lists. These two hold
+// real user application data (not reference data reloaded from a file),
+// so rows are carried forward exactly like the HuntCode* migrations.
+function addBearToMyHuntPlans(db) {
+    if (!hasTable(db, "MyHuntPlans") || tableAllowsBearSpecies(db, "MyHuntPlans")) return;
+    db.exec(`
+        ALTER TABLE MyHuntPlans RENAME TO MyHuntPlans_old;
+        CREATE TABLE MyHuntPlans (
+            MyHuntPlanID INTEGER PRIMARY KEY,
+            SeasonYear   INTEGER NOT NULL,
+            SpeciesKey   TEXT NOT NULL CHECK (SpeciesKey IN ('deer', 'elk', 'pronghorn', 'bear')),
+            IsTargeted   INTEGER NOT NULL DEFAULT 0 CHECK (IsTargeted IN (0, 1)),
+            HasApplied   INTEGER NOT NULL DEFAULT 0 CHECK (HasApplied IN (0, 1)),
+            CurrentPreferencePoints INTEGER,
+            PrimaryChoice1HuntCode TEXT,
+            PrimaryChoice2HuntCode TEXT,
+            PrimaryDrawResult      TEXT NOT NULL DEFAULT 'pending'
+                CHECK (PrimaryDrawResult IN ('pending', 'drawn', 'not_drawn')),
+            PrimaryDrawnHuntCode   TEXT,
+            SecondaryChoiceHuntCode TEXT,
+            SecondaryDrawResult     TEXT NOT NULL DEFAULT 'pending'
+                CHECK (SecondaryDrawResult IN ('pending', 'drawn', 'not_drawn')),
+            SecondaryDrawnHuntCode  TEXT,
+            Notes     TEXT,
+            UpdatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (SeasonYear, SpeciesKey)
+        );
+        INSERT INTO MyHuntPlans (
+            MyHuntPlanID, SeasonYear, SpeciesKey, IsTargeted, HasApplied, CurrentPreferencePoints,
+            PrimaryChoice1HuntCode, PrimaryChoice2HuntCode, PrimaryDrawResult, PrimaryDrawnHuntCode,
+            SecondaryChoiceHuntCode, SecondaryDrawResult, SecondaryDrawnHuntCode,
+            Notes, UpdatedAt
+        )
+        SELECT
+            MyHuntPlanID, SeasonYear, SpeciesKey, IsTargeted, HasApplied, CurrentPreferencePoints,
+            PrimaryChoice1HuntCode, PrimaryChoice2HuntCode, PrimaryDrawResult, PrimaryDrawnHuntCode,
+            SecondaryChoiceHuntCode, SecondaryDrawResult, SecondaryDrawnHuntCode,
+            Notes, UpdatedAt
+        FROM MyHuntPlans_old;
+        DROP TABLE MyHuntPlans_old;
+    `);
+    console.log("Migration: added 'bear' to MyHuntPlans.SpeciesKey, preserving existing rows.");
+}
+
+function addBearToMyHuntLeftoverPurchases(db) {
+    if (!hasTable(db, "MyHuntLeftoverPurchases") || tableAllowsBearSpecies(db, "MyHuntLeftoverPurchases")) return;
+    db.exec(`
+        ALTER TABLE MyHuntLeftoverPurchases RENAME TO MyHuntLeftoverPurchases_old;
+        CREATE TABLE MyHuntLeftoverPurchases (
+            MyHuntLeftoverPurchaseID INTEGER PRIMARY KEY,
+            SeasonYear   INTEGER NOT NULL,
+            SpeciesKey   TEXT NOT NULL CHECK (SpeciesKey IN ('deer', 'elk', 'pronghorn', 'bear')),
+            HuntCode     TEXT,
+            PurchaseDate TEXT,
+            Notes        TEXT,
+            CreatedAt    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO MyHuntLeftoverPurchases (
+            MyHuntLeftoverPurchaseID, SeasonYear, SpeciesKey, HuntCode, PurchaseDate, Notes, CreatedAt
+        )
+        SELECT
+            MyHuntLeftoverPurchaseID, SeasonYear, SpeciesKey, HuntCode, PurchaseDate, Notes, CreatedAt
+        FROM MyHuntLeftoverPurchases_old;
+        DROP TABLE MyHuntLeftoverPurchases_old;
+    `);
+    console.log("Migration: added 'bear' to MyHuntLeftoverPurchases.SpeciesKey, preserving existing rows.");
+}
+
 function runMigrations(db) {
     dropLegacyMyHuntLeftoverColumns(db);
     addMyHuntPlansPreferencePoints(db);
@@ -166,6 +235,8 @@ function runMigrations(db) {
     addWalkInAreasParcelCount(db);
     addBearToHuntCodeHarvestStats(db);
     addBearToHuntCodeDrawPoints(db);
+    addBearToMyHuntPlans(db);
+    addBearToMyHuntLeftoverPurchases(db);
 }
 
 module.exports = { runMigrations };

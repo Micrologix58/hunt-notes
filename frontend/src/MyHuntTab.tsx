@@ -8,6 +8,7 @@ const SPECIES: { key: MyHuntPlan["speciesKey"]; label: string }[] = [
     { key: "deer", label: "Deer" },
     { key: "elk", label: "Elk" },
     { key: "pronghorn", label: "Pronghorn" },
+    { key: "bear", label: "Bear" },
 ];
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";

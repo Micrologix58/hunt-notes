@@ -82,7 +82,7 @@ app.get("/api/home/dashboard", (req, res) => {
 
 // ─── My Hunt tab: personal application tracking ────────────────────────────
 
-const MY_HUNT_SPECIES = ["deer", "elk", "pronghorn"];
+const MY_HUNT_SPECIES = ["deer", "elk", "pronghorn", "bear"];
 const DRAW_RESULTS = ["pending", "drawn", "not_drawn"];
 
 function defaultMyHuntPlan(seasonYear, speciesKey) {
@@ -173,7 +173,7 @@ const updateLeftoverPurchaseStmt = db.prepare(`
 const deleteLeftoverPurchaseStmt = db.prepare(`DELETE FROM MyHuntLeftoverPurchases WHERE MyHuntLeftoverPurchaseID = ?`);
 
 // GET /api/my-hunt/plans?year=2027 -- always returns one entry per tracked
-// species (deer/elk/pronghorn), defaulted blank if nothing's been saved yet,
+// species (deer/elk/pronghorn/bear), defaulted blank if nothing's been saved yet,
 // each with its list of leftover/OTC purchases (0 or more).
 app.get("/api/my-hunt/plans", (req, res) => {
     try {

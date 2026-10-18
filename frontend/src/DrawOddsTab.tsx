@@ -100,7 +100,7 @@ export function DrawOddsTab() {
             <div style={controlsRowStyle}>
                 <input
                     style={{ ...inputStyle, width: 140 }}
-                    placeholder="Hunt code…"
+                    placeholder="Hunt code (e.g. DM002O1M)…"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                 />
