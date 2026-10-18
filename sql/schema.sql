@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS Species (
 );
 
 -- Colorado runs ONE unified primary/secondary draw application process for
--- deer, elk and pronghorn (and bear/moose, which this app doesn't track) --
+-- deer, elk, pronghorn and bear (and moose, which this app doesn't track) --
 -- the application/payment/results dates are identical across those species,
 -- so this table is intentionally NOT scoped by species. The Home tab shows
 -- this same calendar once per big-game species column.
@@ -201,7 +201,7 @@ CREATE INDEX IF NOT EXISTS idx_AccessAreaSpecies_Name ON AccessAreaSpecies (Spec
 CREATE TABLE IF NOT EXISTS HuntCodeHarvestStats (
     HuntCodeHarvestStatID INTEGER PRIMARY KEY,
     SeasonYear      INTEGER NOT NULL,
-    Species         TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn')),
+    Species         TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn', 'bear')),
     HuntCode        TEXT NOT NULL,             -- as published, e.g. 'DM002O1M*' (trailing * = few responses)
     GMU             INTEGER,                    -- decoded from HuntCode chars 3-5
     Sex             TEXT,                       -- decoded from HuntCode char 2: M/F/E
@@ -228,7 +228,7 @@ CREATE TABLE IF NOT EXISTS HuntCodeHarvestStats (
 CREATE TABLE IF NOT EXISTS HuntCodeDrawPoints (
     HuntCodeDrawPointID INTEGER PRIMARY KEY,
     SeasonYear  INTEGER NOT NULL,
-    Species     TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn')),
+    Species     TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn', 'bear')),
     DrawType    TEXT NOT NULL CHECK (DrawType IN ('primary', 'secondary')),
     HuntCode    TEXT NOT NULL,
     GMU         INTEGER,

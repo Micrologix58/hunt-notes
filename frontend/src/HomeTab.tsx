@@ -15,6 +15,7 @@ import {
 const METHOD_ROWS: { key: string; label: string }[] = [
     { key: "archery", label: "Archery" },
     { key: "muzzleloader", label: "Muzzleloader" },
+    { key: "sept_rifle", label: "Sept. Rifle" },
     { key: "rifle", label: "Rifle" },
     { key: "rifle_1", label: "First Rifle" },
     { key: "rifle_2", label: "Second Rifle" },
@@ -101,7 +102,7 @@ function BigGameTable({ dashboard }: { dashboard: HomeDashboard }) {
         <div style={panelStyle}>
             <h3 style={{ color: "#e2e8f0", margin: "0 0 4px" }}>Big Game -- {dashboard.seasonYear}</h3>
             <div style={{ color: "#64748b", fontSize: 12, marginBottom: 10 }}>
-                Primary/secondary draw dates apply to the unified deer/elk/pronghorn draw -- same for every column.
+                Primary/secondary draw dates apply to the unified deer/elk/pronghorn/bear draw -- same for every column.
             </div>
             <table style={tableStyle}>
                 <thead>

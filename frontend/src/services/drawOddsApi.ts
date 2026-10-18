@@ -1,5 +1,5 @@
 export type DrawOddsRow = {
-    species: "deer" | "elk" | "pronghorn";
+    species: "deer" | "elk" | "pronghorn" | "bear";
     huntCode: string;
     gmu: number | null;
     sex: string | null;          // M/F/E (decoded from the hunt code)

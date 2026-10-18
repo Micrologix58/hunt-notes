@@ -20,6 +20,7 @@ INSERT INTO Species (SpeciesKey, DisplayName, Category, SortOrder) VALUES
     ('whitetail_deer',    'Whitetail',          'big_game',   2),
     ('elk',               'Elk',                'big_game',   3),
     ('pronghorn',         'Pronghorn',          'big_game',   4),
+    ('bear',              'Bear',               'big_game',   5),
     ('rabbit',            'Rabbit',             'small_game', 1),
     ('dove',              'Dove',               'small_game', 2),
     ('blue_grouse',       'Blue Grouse',        'small_game', 3),
@@ -88,7 +89,20 @@ INSERT INTO BigGameSeasonDates (SeasonYear, SpeciesID, MethodKey, MethodLabel, D
 
     (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'pronghorn'), 'archery',      'Archery',      'Aug. 15-Sept. 20*', 1, '*Unless otherwise noted in the brochure tables.'),
     (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'pronghorn'), 'muzzleloader', 'Muzzleloader', 'Sept. 21-29',       2, NULL),
-    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'pronghorn'), 'rifle',        'Rifle',        'Oct. 3-11*',        3, '*General dates -- early/late rifle season dates vary by hunt code. See hunt code tables, brochure pages 56-57.');
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'pronghorn'), 'rifle',        'Rifle',        'Oct. 3-11*',        3, '*General dates -- early/late rifle season dates vary by hunt code. See hunt code tables, brochure pages 56-57.'),
+
+    -- Bear is legal game during deer/elk's 1st-4th rifle seasons (same
+    -- dates -- "The first rifle season is limited to deer, elk and bear
+    -- hunting only. The second, third and fourth rifle seasons are for
+    -- elk, bear and deer hunters"), plus its own early-September
+    -- private-land-only rifle season.
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'bear'), 'archery',      'Archery',       'Sept. 2-30*',     1, '*Unless otherwise noted in the hunt code tables.'),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'bear'), 'muzzleloader', 'Muzzleloader',  'Sept. 12-20*',    2, '*Unless otherwise noted in the hunt code tables.'),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'bear'), 'sept_rifle',   'Sept. Rifle',   'Sept. 2-30*',     3, 'Private-land-only, GMUs 3, 11, 211 & 301. *Unless otherwise noted in the hunt code tables.'),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'bear'), 'rifle_1',      'First Rifle',   'Oct. 14-18',      4, NULL),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'bear'), 'rifle_2',      'Second Rifle',  'Oct. 24-Nov. 1',  5, NULL),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'bear'), 'rifle_3',      'Third Rifle',   'Nov. 7-15',       6, NULL),
+    (2026, (SELECT SpeciesID FROM Species WHERE SpeciesKey = 'bear'), 'rifle_4',      'Fourth Rifle',  'Nov. 18-22',      7, NULL);
 
 -- ─── Small Game: Season Dates & Bag/Possession Limits ───
 

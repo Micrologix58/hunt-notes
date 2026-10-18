@@ -208,8 +208,8 @@ To add, split, or refine entries:
 ## Design notes
 
 - **Draw dates are not per-species.** Colorado runs one unified
-  primary/secondary application process for deer, elk and pronghorn (and
-  bear/moose, which this app doesn't track), so `DrawDates` has no
+  primary/secondary application process for deer, elk, pronghorn and
+  bear (and moose, which this app doesn't track), so `DrawDates` has no
   `SpeciesID` -- the Home tab repeats the same calendar under each
   big-game column.
 - **Season dates are stored as published text**, not parsed start/end
@@ -289,10 +289,12 @@ To add, split, or refine entries:
   (`import_access_areas.js`, upsert by name+type, never touches
   `Notes`) specifically so `db:init` can never wipe your own notes on
   a property -- see "Updating Access-tab data" above.
-- **Draw Odds only covers Deer and Pronghorn so far** -- those are the
-  reports that have been provided; Elk works exactly the same way
-  once its harvest/post-draw PDFs are added (see "Updating Draw Odds
-  data" above). GMU/Sex/Method are decoded from each hunt code itself
+- **Draw Odds only has data for Deer and Pronghorn so far** -- those are
+  the reports that have been provided. Elk and Bear are both wired up in
+  the schema/UI (species filter, `Species` CHECK constraint) and will
+  work exactly the same way once their harvest/post-draw PDFs are added
+  (see "Updating Draw Odds data" above) -- there's just nothing to show
+  for them yet. GMU/Sex/Method are decoded from each hunt code itself
   (8 characters, self-describing -- see the Big Game brochure's "Hunt
   codes contain a lot of information" page), not looked up from a
   separate table, so a hunt code from *any* source shows up correctly

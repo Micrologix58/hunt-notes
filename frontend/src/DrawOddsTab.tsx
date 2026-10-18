@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchDrawOdds, type DrawOddsRow } from "./services/drawOddsApi";
 
 type SortMode = "gmu" | "success" | "recdays" | "primaryPoints" | "secondaryPoints";
-type SpeciesFilter = "all" | "deer" | "elk" | "pronghorn";
+type SpeciesFilter = "all" | "deer" | "elk" | "pronghorn" | "bear";
 type MethodFilter = "all" | "A" | "M" | "R" | "X";
 type SexFilter = "all" | "M" | "F" | "E";
 
-const SPECIES_LABEL: Record<string, string> = { deer: "Deer", elk: "Elk", pronghorn: "Pronghorn" };
+const SPECIES_LABEL: Record<string, string> = { deer: "Deer", elk: "Elk", pronghorn: "Pronghorn", bear: "Bear" };
 const METHOD_LABEL: Record<string, string> = { A: "Archery", M: "Muzzleloader", R: "Rifle", X: "Season Choice", P: "Pref Pt Only" };
 const SEX_LABEL: Record<string, string> = { M: "Male", F: "Female", E: "Either" };
 
@@ -110,6 +110,7 @@ export function DrawOddsTab() {
                     <option value="deer">Deer</option>
                     <option value="elk">Elk</option>
                     <option value="pronghorn">Pronghorn</option>
+                    <option value="bear">Bear</option>
                 </select>
                 <span style={labelStyle}>Method</span>
                 <select style={inputStyle} value={methodFilter} onChange={e => setMethodFilter(e.target.value as MethodFilter)}>

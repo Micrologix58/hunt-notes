@@ -64,11 +64,108 @@ function addWalkInAreasParcelCount(db) {
     console.log("Migration: added WalkInAreas.ParcelCount.");
 }
 
+// HuntCodeHarvestStats/HuntCodeDrawPoints.Species started CHECK'd to
+// ('deer','elk','pronghorn'); adding bear needs 'bear' in that list. SQLite
+// can't alter a CHECK constraint in place, so this rebuilds each table
+// (rename, recreate with the new CHECK, copy rows across, drop the old
+// one) -- unlike the WalkInAreas rebuilds above, these tables hold real
+// imported harvest/draw-points data, so rows are carried forward, not
+// dropped. Detects whether it's already been applied by checking the
+// table's own CREATE TABLE sql for 'bear'.
+function tableAllowsBearSpecies(db, table) {
+    const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table);
+    return !!row && row.sql.includes("'bear'");
+}
+
+function addBearToHuntCodeHarvestStats(db) {
+    if (!hasTable(db, "HuntCodeHarvestStats") || tableAllowsBearSpecies(db, "HuntCodeHarvestStats")) return;
+    db.exec(`
+        ALTER TABLE HuntCodeHarvestStats RENAME TO HuntCodeHarvestStats_old;
+        CREATE TABLE HuntCodeHarvestStats (
+            HuntCodeHarvestStatID INTEGER PRIMARY KEY,
+            SeasonYear      INTEGER NOT NULL,
+            Species         TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn', 'bear')),
+            HuntCode        TEXT NOT NULL,
+            GMU             INTEGER,
+            Sex             TEXT,
+            Method          TEXT,
+            SeasonCode      TEXT,
+            AntleredCount   INTEGER,
+            AntlerlessCount INTEGER,
+            YoungCount      INTEGER,
+            TotalHarvest    INTEGER,
+            TotalHunters    INTEGER,
+            PercentSuccess  REAL,
+            TotalRecDays    INTEGER,
+            FewResponses    INTEGER NOT NULL DEFAULT 0 CHECK (FewResponses IN (0, 1)),
+            UNIQUE (SeasonYear, Species, HuntCode)
+        );
+        INSERT INTO HuntCodeHarvestStats (
+            HuntCodeHarvestStatID, SeasonYear, Species, HuntCode, GMU, Sex, Method, SeasonCode,
+            AntleredCount, AntlerlessCount, YoungCount, TotalHarvest, TotalHunters,
+            PercentSuccess, TotalRecDays, FewResponses
+        )
+        SELECT
+            HuntCodeHarvestStatID, SeasonYear, Species, HuntCode, GMU, Sex, Method, SeasonCode,
+            AntleredCount, AntlerlessCount, YoungCount, TotalHarvest, TotalHunters,
+            PercentSuccess, TotalRecDays, FewResponses
+        FROM HuntCodeHarvestStats_old;
+        DROP TABLE HuntCodeHarvestStats_old;
+    `);
+    console.log("Migration: added 'bear' to HuntCodeHarvestStats.Species, preserving existing rows.");
+}
+
+function addBearToHuntCodeDrawPoints(db) {
+    if (!hasTable(db, "HuntCodeDrawPoints") || tableAllowsBearSpecies(db, "HuntCodeDrawPoints")) return;
+    db.exec(`
+        ALTER TABLE HuntCodeDrawPoints RENAME TO HuntCodeDrawPoints_old;
+        CREATE TABLE HuntCodeDrawPoints (
+            HuntCodeDrawPointID INTEGER PRIMARY KEY,
+            SeasonYear  INTEGER NOT NULL,
+            Species     TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn', 'bear')),
+            DrawType    TEXT NOT NULL CHECK (DrawType IN ('primary', 'secondary')),
+            HuntCode    TEXT NOT NULL,
+            GMU         INTEGER,
+            Sex         TEXT,
+            Method      TEXT,
+            SeasonCode  TEXT,
+            List        TEXT,
+            AdultResStatus    TEXT,
+            AdultResPoints    INTEGER,
+            AdultNonResStatus TEXT,
+            AdultNonResPoints INTEGER,
+            YouthResStatus    TEXT,
+            YouthResPoints    INTEGER,
+            YouthNonResStatus TEXT,
+            YouthNonResPoints INTEGER,
+            LandownerUnrestrictedStatus TEXT,
+            LandownerRestrictedStatus   TEXT,
+            UNIQUE (SeasonYear, Species, DrawType, HuntCode)
+        );
+        INSERT INTO HuntCodeDrawPoints (
+            HuntCodeDrawPointID, SeasonYear, Species, DrawType, HuntCode, GMU, Sex, Method, SeasonCode, List,
+            AdultResStatus, AdultResPoints, AdultNonResStatus, AdultNonResPoints,
+            YouthResStatus, YouthResPoints, YouthNonResStatus, YouthNonResPoints,
+            LandownerUnrestrictedStatus, LandownerRestrictedStatus
+        )
+        SELECT
+            HuntCodeDrawPointID, SeasonYear, Species, DrawType, HuntCode, GMU, Sex, Method, SeasonCode, List,
+            AdultResStatus, AdultResPoints, AdultNonResStatus, AdultNonResPoints,
+            YouthResStatus, YouthResPoints, YouthNonResStatus, YouthNonResPoints,
+            LandownerUnrestrictedStatus, LandownerRestrictedStatus
+        FROM HuntCodeDrawPoints_old;
+        DROP TABLE HuntCodeDrawPoints_old;
+    `);
+    console.log("Migration: added 'bear' to HuntCodeDrawPoints.Species, preserving existing rows.");
+}
+
 function runMigrations(db) {
     dropLegacyMyHuntLeftoverColumns(db);
     addMyHuntPlansPreferencePoints(db);
     makeWalkInAreasGmuNullable(db);
     addWalkInAreasParcelCount(db);
+    addBearToHuntCodeHarvestStats(db);
+    addBearToHuntCodeDrawPoints(db);
 }
 
 module.exports = { runMigrations };
