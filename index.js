@@ -469,6 +469,76 @@ app.get("/api/draw-odds", (req, res) => {
     }
 });
 
+// ─── Walk-In Atlas tab: free public hunting access on enrolled private land ─
+//
+// Reference data hand-transcribed from CPW's Walk-In Atlas maps (see
+// sql/schema.sql and scripts/import_walkin_areas.js) -- County/GMU/BigGame/
+// LandType/Locator/SourcePage are read off the map and read-only; Owner,
+// Notes and Scouted are the user's own fields, filled in as they research
+// each parcel (e.g. against onX Hunt's landowner layer) and scout it.
+
+function rowToWalkInArea(row) {
+    return {
+        id: row.WalkInAreaID,
+        seasonYear: row.SeasonYear,
+        slug: row.Slug,
+        label: row.Label,
+        county: row.County,
+        gmu: row.GMU,
+        bigGame: !!row.BigGame,
+        landType: row.LandType ?? "",
+        locator: row.Locator ?? "",
+        sourcePage: row.SourcePage,
+        owner: row.Owner ?? "",
+        notes: row.Notes ?? "",
+        scouted: !!row.Scouted,
+        updatedAt: row.UpdatedAt,
+    };
+}
+
+// GET /api/walkin-areas -- every transcribed parcel. Small reference
+// dataset (tens of rows, growing GMU by GMU as more of the atlas is
+// transcribed) -- client-side sort/filter, same as the Access tab.
+app.get("/api/walkin-areas", (req, res) => {
+    try {
+        const rows = db.prepare(`SELECT * FROM WalkInAreas ORDER BY GMU, County, Label`).all();
+        res.json({ success: true, data: rows.map(rowToWalkInArea) });
+    } catch (err) {
+        console.error("GET /api/walkin-areas error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+const updateWalkInAreaStmt = db.prepare(
+    `UPDATE WalkInAreas SET Owner = @owner, Notes = @notes, Scouted = @scouted, UpdatedAt = CURRENT_TIMESTAMP WHERE WalkInAreaID = @id`
+);
+const getWalkInAreaStmt = db.prepare(`SELECT * FROM WalkInAreas WHERE WalkInAreaID = ?`);
+
+// PUT /api/walkin-areas/:id -- updates the user-editable fields: Owner,
+// Notes and Scouted. Everything else (GMU, land type, locator, etc.) stays
+// atlas-sourced and read-only -- re-running the import script never
+// touches these three columns, see scripts/import_walkin_areas.js.
+app.put("/api/walkin-areas/:id", (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const existing = getWalkInAreaStmt.get(id);
+        if (!existing) {
+            return res.status(404).json({ success: false, error: "Walk-In area not found" });
+        }
+
+        const body = req.body || {};
+        const owner = "owner" in body ? body.owner : existing.Owner;
+        const notes = "notes" in body ? body.notes : existing.Notes;
+        const scouted = "scouted" in body ? !!body.scouted : !!existing.Scouted;
+
+        updateWalkInAreaStmt.run({ id, owner: owner || null, notes: notes || null, scouted: scouted ? 1 : 0 });
+        res.json({ success: true, data: rowToWalkInArea(getWalkInAreaStmt.get(id)) });
+    } catch (err) {
+        console.error("PUT /api/walkin-areas/:id error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Hunt Notes API listening on port ${PORT}`);
 });

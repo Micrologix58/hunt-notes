@@ -14,9 +14,13 @@ hunt-notes/
   sql/seed_2026.sql               -- 2026 draw dates & season data (re-run yearly)
   scripts/init-db.js              -- applies schema.sql + seed_2026.sql + migrations
   scripts/import_access_areas.js  -- loads Docs/extraction/access_areas.jsonl (run by hand, not by init-db.js)
+  scripts/import_hunt_codes.js    -- loads Docs/extraction/{harvest,draw_points}_*.jsonl (run by hand)
+  scripts/import_walkin_areas.js  -- loads Docs/extraction/walkin_areas_*.jsonl (run by hand)
   data/HuntNotes.db                -- SQLite file (gitignored)
-  Docs/                            -- source CPW brochures (PDFs gitignored -- see below)
+  Docs/                            -- source CPW brochures/reports/atlas (PDFs gitignored -- see below)
   Docs/extraction/access_areas.jsonl -- hand-transcribed SWA/STL data, one JSON object per line
+  Docs/extraction/walkin_areas_2026.jsonl -- hand-transcribed Walk-In Atlas parcels, one JSON object per line
+  Docs/extraction/parse_*.py      -- coordinate-based PDF parsers for the Draw Odds reports
   frontend/                        -- Vite dev server on port 5180, proxies /api -> :4100
 ```
 
@@ -114,6 +118,56 @@ image before trusting it at scale (see git history for the specific
 coordinate-debugging process) -- if a report's layout doesn't match
 what these scripts expect, don't assume the output is right; render a
 sample page and compare.
+
+## Updating Walk-In Atlas data (free access on enrolled private land)
+
+CPW's "Regular Walk-In Atlas" is a different kind of PDF than everything
+else this app pulls from: pages of county maps starting at page 7, one
+raster image per county (or county-half), with no text layer over the
+shaded parcels at all. Each parcel is just a colored polygon (yellow =
+open to small **and** big game, white = small game only) with a single
+land-type letter next to it (G = Grass, C = Corn, W = Wheat, O = Other) --
+no name, address or acreage like the Access tab's brochure properties
+have. That means there's nothing to extract programmatically; every
+parcel in `Docs/extraction/walkin_areas_2026.jsonl` was transcribed by
+rendering the relevant map page(s) at high DPI (`page.get_pixmap(dpi=300)`
+via `pymupdf`), cropping into each cluster of shaded parcels, and reading
+its land type, color and rough position (nearest labeled town, or
+township/range where a town isn't close enough to be useful) directly off
+the image.
+
+A few things worth knowing if you extend this:
+
+- **Half-county maps overlap by one range column.** Several counties are
+  split into "West Half"/"East Half" or "North Half"/"South Half" pages,
+  and the shared boundary range (e.g. Kit Carson's R46W/R47W line) is
+  drawn on *both* pages so parcels sitting on it aren't cut off. Check for
+  this before transcribing a boundary-area parcel twice.
+- **Locator is this app's own invention, not brochure text** -- there's no
+  ground truth to check it against beyond the map image itself, so treat
+  it as "good enough to relocate the parcel," not a surveyed address.
+  Low-confidence reads say so directly (e.g. `landType: null` with a note
+  when a letter wasn't legible) rather than guessing.
+- **GMU boundaries (red lines) don't follow county lines**, so a given
+  county's map page can show parcels in several different GMUs -- check
+  which side of the nearest red GMU boundary a parcel falls on, don't
+  assume the whole page is one GMU.
+
+To add more GMUs or counties:
+
+1. Find the relevant page(s) in `Docs/2026 Regular Walk-In Atlas.pdf`
+   (table of contents on page 2 lists each county's page number).
+2. Render and crop with `pymupdf` + Pillow (`pip install pymupdf
+   Pillow`) the same way described above -- there's no script to run,
+   this is a manual visual-transcription task.
+3. Append new records to `Docs/extraction/walkin_areas_2026.jsonl` (or a
+   new `walkin_areas_<year>.jsonl` for a future atlas edition, added to
+   the file list in `scripts/import_walkin_areas.js`), each with a unique
+   `slug` (used as the upsert key, so pick something stable and
+   descriptive, e.g. `'<county>-<gmu>-<nearest-town>-<n>'`).
+4. `node scripts/import_walkin_areas.js` -- safe to re-run; upserts on
+   (SeasonYear, slug) and never touches a row's Owner, Notes or Scouted
+   columns.
 
 ## Design notes
 
@@ -223,3 +277,18 @@ sample page and compare.
   draw-points columns are independently nullable per hunt code for
   exactly this reason -- there's no requirement that a hunt code have
   data in every source.
+- **Walk-In Atlas coverage is intentionally narrow (GMU 103 and 109
+  only) and will stay patchy.** Unlike Draw Odds' hunt-code reports,
+  there's no way to script this extraction -- the atlas is scanned-map
+  images with no per-parcel text, so every row is a manual visual read
+  (see "Updating Walk-In Atlas data" above). Rather than attempt all
+  19 map pages at lower confidence, this first pass covers just the
+  two GMUs actually asked for, carefully cross-checked parcel by
+  parcel (including deduping parcels shown on two overlapping
+  half-county map pages) -- extend it GMU by GMU as you need more.
+- **Owner is blank on import, by design.** The atlas doesn't name
+  landowners at all -- that comes from a separate source entirely
+  (e.g. onX Hunt's parcel/landowner layer). `WalkInAreas.Owner` exists
+  so you can log what you find there once you've matched a map parcel
+  to its actual boundary on the ground, the same way Notes and
+  Scouted are yours to fill in as you research each one.

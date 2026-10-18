@@ -255,3 +255,35 @@ CREATE INDEX IF NOT EXISTS idx_HuntCodeHarvestStats_GMU ON HuntCodeHarvestStats 
 CREATE INDEX IF NOT EXISTS idx_HuntCodeHarvestStats_Code ON HuntCodeHarvestStats (HuntCode);
 CREATE INDEX IF NOT EXISTS idx_HuntCodeDrawPoints_GMU ON HuntCodeDrawPoints (SeasonYear, Species, DrawType, GMU);
 CREATE INDEX IF NOT EXISTS idx_HuntCodeDrawPoints_Code ON HuntCodeDrawPoints (HuntCode);
+
+-- Walk-In Atlas tab: free public hunting access on private land enrolled in
+-- CPW's Walk-In Access (WIA) program. Unlike the brochures above, the
+-- atlas has no per-property text at all -- it's pages of maps (one raster
+-- image per county half, no text layer over the parcels), each shaded
+-- parcel showing only a land-type letter (G/C/W/O) and a color (yellow =
+-- open to big game + small game, white = small game only). There's no
+-- name, address or acreage printed per parcel -- Slug/Label/Locator below
+-- are this app's own invention (a stable key + a human-readable
+-- description good enough to relocate the parcel in the atlas or onX),
+-- not brochure text. See README's "Updating Walk-In Atlas data" section.
+CREATE TABLE IF NOT EXISTS WalkInAreas (
+    WalkInAreaID INTEGER PRIMARY KEY,
+    SeasonYear   INTEGER NOT NULL,                    -- atlas edition, e.g. 2026
+    Slug         TEXT NOT NULL,                        -- stable id, e.g. 'yuma-109-kirk-1'
+    Label        TEXT NOT NULL,                        -- short human label, e.g. 'N of Kirk (large)'
+    County       TEXT NOT NULL,
+    GMU          INTEGER NOT NULL,
+    BigGame      INTEGER NOT NULL DEFAULT 0 CHECK (BigGame IN (0, 1)),  -- yellow on the map; 0 = white (small game only)
+    LandType     TEXT,                                 -- 'Grass' | 'Corn' | 'Wheat' | 'Other', from the map's G/C/W/O letter
+    Locator      TEXT,                                 -- approximate township/range and/or nearest town, read off the map
+    SourcePage   INTEGER,                               -- printed atlas page number, for traceability
+    Owner        TEXT,                                 -- user-filled, e.g. from onX Hunt's landowner layer
+    Notes        TEXT,                                 -- the user's own scouting notes
+    Scouted      INTEGER NOT NULL DEFAULT 0 CHECK (Scouted IN (0, 1)),
+    CreatedAt    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (SeasonYear, Slug)
+);
+
+CREATE INDEX IF NOT EXISTS idx_WalkInAreas_GMU ON WalkInAreas (SeasonYear, GMU);
+CREATE INDEX IF NOT EXISTS idx_WalkInAreas_County ON WalkInAreas (County);
