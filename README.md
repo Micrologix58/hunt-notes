@@ -76,16 +76,23 @@ on existing ones.
 
 ## Updating Draw Odds data (harvest stats & preference points)
 
-CPW's statewide harvest and post-draw reports are real text-based PDFs
-(unlike the brochures above), but they use *absolute-positioned* text
-rather than actual PDF tables -- `pdftotext`'s column-alignment
-heuristics badly scramble their rows (hunt codes end up paired with
-the wrong data, or two adjacent values merge into one). Getting this
-data out required Python scripts
+CPW's statewide harvest and post-draw reports are mostly real text-based
+PDFs (unlike the brochures above), but most of them use
+*absolute-positioned* text rather than actual PDF tables --
+`pdftotext`'s column-alignment heuristics badly scramble their rows
+(hunt codes end up paired with the wrong data, or two adjacent values
+merge into one). Getting this data out required Python scripts
 (`Docs/extraction/parse_harvest.py`, `parse_drawn_out.py`,
 `parse_deer_recap.py`) that work from raw word *coordinates*
 (`pymupdf`) and reconstruct each row by Y-position clustering and
-nearest-column-X matching instead.
+nearest-column-X matching instead. The one exception so far is the Bear
+harvest report (`parse_bear_harvest.py`), which turned out to be a
+genuine single-column table -- its text already comes out in reading
+order, so that parser just scans the flat token stream for
+hunt-code-shaped tokens and reads off the 6 numbers after each one; no
+coordinate work needed. Don't assume a new report matches either
+pattern -- check with `page.get_text()` on a sample page first (compare
+it against the rendered page image) before picking which approach to use.
 
 To add a new year or species:
 
@@ -103,12 +110,15 @@ To add a new year or species:
    python Docs/extraction/parse_harvest.py "Docs/2026 Deer Statewide Harvest Final.pdf" deer 2026 Docs/extraction/harvest_deer_2026.jsonl
    python Docs/extraction/parse_deer_recap.py "Docs/2026 Primary DEER Post Draw Report.pdf" deer primary 2026 Docs/extraction/draw_points_deer_primary_2026.jsonl
    ```
-   `parse_deer_recap.py` works for any report with one hunt code
-   (or a repeating block) per page/section -- it's what was used for
-   both the 1,065-page Deer primary report and the Pronghorn
-   secondary report, unchanged. `parse_drawn_out.py` is specifically
-   for the compact multi-hunt-code-per-page "Drawn Out At Report"
-   format.
+   `parse_deer_recap.py` works for any report with one hunt code (or a
+   repeating block) per page/section, **portrait or landscape** -- it's
+   what was used for the 1,065-page Deer primary report, the Pronghorn
+   secondary report, and the Bear primary report (landscape-oriented,
+   unlike the other two -- its "# Drawn / Hunt Code / List" box sits a
+   bit further down the page, which is why `HUNT_CODE_BOX_Y_MAX` is a
+   generous 230 rather than tuned tightly to one layout). `parse_drawn_out.py`
+   is specifically for the compact multi-hunt-code-per-page "Drawn Out
+   At Report" format.
 4. Add the new file(s) to the lists in `scripts/import_hunt_codes.js`,
    then `node scripts/import_hunt_codes.js` (upsert by
    (year, species, hunt code[, draw type]) -- safe to re-run).
@@ -117,7 +127,11 @@ Every parser run was spot-checked against the PDF's own rendered page
 image before trusting it at scale (see git history for the specific
 coordinate-debugging process) -- if a report's layout doesn't match
 what these scripts expect, don't assume the output is right; render a
-sample page and compare.
+sample page and compare. After adding Bear, this included a full
+regression check of `parse_deer_recap.py`'s existing Deer output
+(re-ran it against the original Deer PDF and diffed every field against
+the already-committed `draw_points_deer_primary_2025.jsonl` -- zero
+differences) since the `HUNT_CODE_BOX_Y_MAX` change touches a shared script.
 
 ## Updating Walk-In Atlas data (free access on enrolled private land)
 
@@ -289,16 +303,32 @@ To add, split, or refine entries:
   (`import_access_areas.js`, upsert by name+type, never touches
   `Notes`) specifically so `db:init` can never wipe your own notes on
   a property -- see "Updating Access-tab data" above.
-- **Draw Odds only has data for Deer and Pronghorn so far** -- those are
-  the reports that have been provided. Elk and Bear are both wired up in
-  the schema/UI (species filter, `Species` CHECK constraint) and will
-  work exactly the same way once their harvest/post-draw PDFs are added
-  (see "Updating Draw Odds data" above) -- there's just nothing to show
-  for them yet. GMU/Sex/Method are decoded from each hunt code itself
-  (8 characters, self-describing -- see the Big Game brochure's "Hunt
+- **Draw Odds has data for Deer, Pronghorn and Bear so far** -- those are
+  the reports that have been provided. Elk is wired up in the
+  schema/UI (species filter, `Species` CHECK constraint) and will work
+  exactly the same way once its harvest/post-draw PDFs are added (see
+  "Updating Draw Odds data" above) -- there's just nothing to show for
+  it yet. GMU/Sex/Method are decoded from each hunt code itself (8
+  characters, self-describing -- see the Big Game brochure's "Hunt
   codes contain a lot of information" page), not looked up from a
   separate table, so a hunt code from *any* source shows up correctly
   filterable/sortable the moment it's imported.
+- **Bear's harvest "Hunters" column is really "Total Licenses Sold"**,
+  not unique hunters who actually went afield -- that's the column CPW
+  publishes for bear (unlike deer/pronghorn's draw-limited "Total
+  Hunters"), and bear licenses are sold far more broadly (OTC/add-on,
+  not just limited draw), so it's normal for this number to run much
+  higher than Total Rec. Days for the same hunt code. Use Rec. Days for
+  pressure, the same guidance as every other species -- don't read
+  Hunters as a pressure indicator for bear.
+- **`BP99999P` is a real CPW placeholder hunt code**, not a parsing
+  artifact -- it appears in the Deer, Pronghorn and Bear draw-points
+  reports alike, representing applicants who applied only to bank a
+  preference point rather than for any real unit (0 quota, "None
+  Drawn" across every category). It decodes to a nonsense GMU (999)
+  since the hunt-code format doesn't special-case it, so it sorts to
+  the bottom of a GMU-sorted view -- harmless, but worth recognizing
+  if you spot it.
 - **Preference-point status is kept as published text, not reduced to
   a single number.** "Choice 2", "Leftover Choice 1", "No Apps" and
   "None Drawn" aren't point counts -- they're genuinely different

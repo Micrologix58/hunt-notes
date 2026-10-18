@@ -165,6 +165,7 @@ function main() {
 
     const harvestFiles = [
         ["harvest_deer_2025.jsonl", "deer"],
+        ["harvest_bear_2025.jsonl", "bear"],
     ];
     for (const [file, species] of harvestFiles) {
         const p = path.join(EXTRACTION_DIR, file);
@@ -178,6 +179,7 @@ function main() {
         "draw_points_deer_primary_2025.jsonl",
         "draw_points_pronghorn_primary_2026.jsonl",
         "draw_points_pronghorn_secondary_2026.jsonl",
+        "draw_points_bear_primary_2026.jsonl",
     ];
     for (const file of drawPointsFiles) {
         const p = path.join(EXTRACTION_DIR, file);

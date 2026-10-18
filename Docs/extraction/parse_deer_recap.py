@@ -18,7 +18,11 @@ import json
 import pymupdf
 
 PHRASE_GAP_PX = 3
-HUNT_CODE_BOX_Y_MAX = 185  # "# Drawn / Hunt Code / List" mini-table is in the top-left red box
+# "# Drawn / Hunt Code / List" mini-table is in the top-left red box -- its
+# exact Y position depends on the report's page orientation (185 for the
+# portrait Deer/Pronghorn reports, ~204 for the landscape Bear report), so
+# this is generous enough to cover both rather than tuned to one.
+HUNT_CODE_BOX_Y_MAX = 230
 
 
 def group_into_phrases(line_words):
