@@ -82,7 +82,7 @@ function importHarvestFile(filePath, species) {
             upsertHarvestStmt.run({
                 seasonYear: r.seasonYear,
                 species,
-                huntCode: r.hunt_code,
+                huntCode: decoded.code,
                 gmu: decoded.gmu,
                 sex: decoded.sex,
                 method: decoded.method,
@@ -166,6 +166,7 @@ function main() {
     const harvestFiles = [
         ["harvest_deer_2025.jsonl", "deer"],
         ["harvest_bear_2025.jsonl", "bear"],
+        ["harvest_elk_2025.jsonl", "elk"],
     ];
     for (const [file, species] of harvestFiles) {
         const p = path.join(EXTRACTION_DIR, file);
@@ -180,6 +181,7 @@ function main() {
         "draw_points_pronghorn_primary_2026.jsonl",
         "draw_points_pronghorn_secondary_2026.jsonl",
         "draw_points_bear_primary_2026.jsonl",
+        "draw_points_elk_primary_2026.jsonl",
     ];
     for (const file of drawPointsFiles) {
         const p = path.join(EXTRACTION_DIR, file);

@@ -35,8 +35,11 @@ def find_header(words):
     header_y = hc[0][1]
     row = [w for w in words if abs(w[1] - header_y) < 3]
     # Column anchors keyed by the last header word above each column (2nd
-    # line of 2-line headers, e.g. "Harvest" under "Total").
+    # line of 2-line headers, e.g. "Harvest" under "Total"). The sex-column
+    # labels vary by species -- Bucks/Does/Fawns (deer), Bulls/Cows/Calves
+    # (elk) -- same report template, just different terms for male/female/young.
     anchor_words = {"Bucks": "sex1", "Does": "sex2", "Fawns": "sex3",
+                    "Bulls": "sex1", "Cows": "sex2", "Calves": "sex3",
                     "Harvest": "total_harvest", "Hunters": "total_hunters",
                     "Success": "percent_success", "Days": "total_rec_days"}
     cols = {}

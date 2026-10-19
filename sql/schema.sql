@@ -202,7 +202,10 @@ CREATE TABLE IF NOT EXISTS HuntCodeHarvestStats (
     HuntCodeHarvestStatID INTEGER PRIMARY KEY,
     SeasonYear      INTEGER NOT NULL,
     Species         TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn', 'bear')),
-    HuntCode        TEXT NOT NULL,             -- as published, e.g. 'DM002O1M*' (trailing * = few responses)
+    HuntCode        TEXT NOT NULL,             -- de-asterisked, e.g. 'DM002O1M' -- the report prints a trailing
+                                                 -- '*' for few-responses codes, but that's tracked by FewResponses
+                                                 -- below instead, so this matches HuntCodeDrawPoints.HuntCode
+                                                 -- exactly and the two tables actually join on the same key
     GMU             INTEGER,                    -- decoded from HuntCode chars 3-5
     Sex             TEXT,                       -- decoded from HuntCode char 2: M/F/E
     Method          TEXT,                       -- decoded from HuntCode char 8: A/M/R/X

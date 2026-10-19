@@ -303,16 +303,28 @@ To add, split, or refine entries:
   (`import_access_areas.js`, upsert by name+type, never touches
   `Notes`) specifically so `db:init` can never wipe your own notes on
   a property -- see "Updating Access-tab data" above.
-- **Draw Odds has data for Deer, Pronghorn and Bear so far** -- those are
-  the reports that have been provided. Elk is wired up in the
-  schema/UI (species filter, `Species` CHECK constraint) and will work
-  exactly the same way once its harvest/post-draw PDFs are added (see
-  "Updating Draw Odds data" above) -- there's just nothing to show for
-  it yet. GMU/Sex/Method are decoded from each hunt code itself (8
-  characters, self-describing -- see the Big Game brochure's "Hunt
-  codes contain a lot of information" page), not looked up from a
-  separate table, so a hunt code from *any* source shows up correctly
-  filterable/sortable the moment it's imported.
+- **Draw Odds now has data for all four tracked species** -- Deer,
+  Pronghorn, Bear and Elk. GMU/Sex/Method are decoded from each hunt
+  code itself (8 characters, self-describing -- see the Big Game
+  brochure's "Hunt codes contain a lot of information" page), not
+  looked up from a separate table, so a hunt code from *any* source
+  shows up correctly filterable/sortable the moment it's imported.
+- **`HuntCodeHarvestStats.HuntCode` is de-asterisked, matching
+  `HuntCodeDrawPoints.HuntCode` exactly.** The harvest report prints a
+  trailing `*` on "few responses" hunt codes (e.g. `DM002O1M*`) --
+  early on, `scripts/import_hunt_codes.js` stored that raw string
+  straight into `HuntCode` instead of using the already-decoded,
+  de-asterisked `code`, even though `FewResponses` already exists
+  specifically to carry that flag. The practical effect: a hunt code
+  with low harvest-survey responses never matched its own draw-points
+  row in the Draw Odds view -- `AllCodes`'s UNION saw `'DM002O1M*'` and
+  `'DM002O1M'` as two different hunt codes, so it rendered as two
+  partial rows (one with harvest and blank draw points, one with draw
+  points and blank harvest) instead of one complete one. Affected
+  ~17% of Deer and ~14% of Elk harvest rows -- found while adding Elk
+  (it's a lot more visually obvious at >100 split rows than at a few
+  dozen) and fixed retroactively for Deer and Bear too, not just the
+  newly-added Elk data.
 - **Bear's harvest "Hunters" column is really "Total Licenses Sold"**,
   not unique hunters who actually went afield -- that's the column CPW
   publishes for bear (unlike deer/pronghorn's draw-limited "Total
