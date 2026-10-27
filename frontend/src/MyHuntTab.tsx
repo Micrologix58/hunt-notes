@@ -156,7 +156,7 @@ export function MyHuntTab() {
     if (plans == null) return <div style={{ padding: 24, color: "#94a3b8" }}>Loading…</div>;
 
     return (
-        <div style={{ padding: "20px 24px", maxWidth: 1100 }}>
+        <div style={{ padding: "20px 24px", maxWidth: 1300 }}>
             <div style={panelStyle}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                     <h3 style={{ color: "#e2e8f0", margin: 0 }}>My Hunt -- {year}</h3>
