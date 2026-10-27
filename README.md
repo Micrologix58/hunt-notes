@@ -16,6 +16,7 @@ hunt-notes/
   scripts/import_access_areas.js  -- loads Docs/extraction/access_areas.jsonl (run by hand, not by init-db.js)
   scripts/import_hunt_codes.js    -- loads Docs/extraction/{harvest,draw_points}_*.jsonl (run by hand)
   scripts/import_walkin_areas.js  -- loads Docs/extraction/walkin_areas_*.jsonl (run by hand)
+  scripts/import_deer_population.js -- loads Docs/extraction/population_deer_*.jsonl (run by hand)
   data/HuntNotes.db                -- SQLite file (gitignored)
   Docs/                            -- source CPW brochures/reports/atlas (PDFs gitignored -- see below)
   Docs/extraction/access_areas.jsonl -- hand-transcribed SWA/STL data, one JSON object per line
@@ -219,6 +220,67 @@ To add, split, or refine entries:
    (SeasonYear, slug) and never touches a row's Owner, Notes or Scouted
    columns.
 
+## Updating Herd data (deer population estimates & buck/doe ratios)
+
+CPW publishes an annual "Post Hunt Population & Sex Ratio Estimates"
+PDF per species -- one row per DAU (Data Analysis Unit, a group of GMUs
+managed as one herd): DAU number, herd name (most years), the GMUs
+involved, the post-hunt population estimate, and the buck/doe ratio.
+Unlike the Draw Odds reports, these are small, genuinely linear
+single-page tables -- `Docs/extraction/parse_deer_population.py` just
+walks the extracted text line by line (no coordinate reconstruction
+needed), adapting per row to whichever of these the report happens to
+do that year:
+- Herd name column present or absent (2019/2020/2025 omit it).
+- `Total Statewide Estimate` appearing before or after the DAU rows,
+  and followed by 1 number (estimate only) or 2 (estimate + statewide
+  ratio).
+- DAU numbers bare (`1`) vs. zero-padded (`01`) -- normalized to
+  2-digit by `scripts/import_deer_population.js` on import so the same
+  DAU joins into one series across years instead of silently splitting
+  into two (this bit Deer the first time through: DAU `1` and `01`
+  were landing as different rows until the normalization was added).
+
+**One file (`2022DeerPopulationEstimates.pdf`) resisted all of this.**
+It uses an embedded Type3 font with no usable character mapping, so
+`page.get_text()` comes back as garbage bytes no matter what -- not a
+parsing bug to fix, just an unextractable PDF. Its data
+(`Docs/extraction/population_deer_2022.jsonl`) was transcribed by hand
+from the rendered page image instead, then cross-checked field-by-field
+against 2021's parsed output (DAU boundaries didn't change between
+those two years, so herd name and GMU list should match exactly row for
+row) -- confirmed zero mismatches across all 54 DAUs before trusting it.
+
+**DAU numbers are not stable identifiers across years.** CPW
+restructured several DAUs in 2024 -- old DAUs 21 (West Elk), 22 (Taylor
+River) and 25 (Powderhorn) merged into new DAU 57 (Gunnison Basin); old
+31 (Costilla) and 37 (Sand Dunes) merged into new DAU 56 (Sand Dunes).
+Reports published after that change use the new numbering retroactively
+(even the 2023 report, published May 2024, already uses DAU 56/57) --
+only 2019-2022 use the old numbering. This app doesn't try to reconcile
+old and new DAU numbers into one continuous series; `DeerPopulationEstimates`
+just stores exactly what each year's report says, so selecting an old,
+now-retired DAU number in the Herd tab correctly shows only its 2019-2022
+years, and a new DAU like 56/57 correctly shows only 2023-2025.
+
+To add a new year:
+
+1. Drop the new report PDF in `Docs/`.
+2. Check it extracts cleanly first: `python -c "import pymupdf;
+   print(pymupdf.open('Docs/<file>.pdf')[0].get_text()[:500])"` -- if it
+   comes back readable, proceed to step 3; if it's garbled like 2022's
+   was, render the page (`page.get_pixmap(dpi=200)`) and transcribe by
+   hand into the same JSON-per-line shape (see
+   `population_deer_2022.jsonl` for the exact field names), ideally
+   cross-checked against an adjacent year's DAU/herd-name/GMU list the
+   way 2022 was.
+3. `python Docs/extraction/parse_deer_population.py "Docs/<file>.pdf"
+   <year> Docs/extraction/population_deer_<year>.jsonl`
+4. Add `<year>` to the `years` list in
+   `scripts/import_deer_population.js`, then
+   `node scripts/import_deer_population.js` -- safe to re-run; upserts
+   on (SeasonYear, DAU) and never touches TagQuota.
+
 ## Design notes
 
 - **Draw dates are not per-species.** Colorado runs one unified
@@ -377,3 +439,21 @@ To add, split, or refine entries:
   so you can log what you find there once you've matched a map parcel
   to its actual boundary on the ground, the same way Notes and
   Scouted are yours to fill in as you research each one.
+- **The Herd tab's bar/line charts are hand-rolled SVG, not a charting
+  library.** Each DAU has at most 7 data points -- not enough to
+  justify a new frontend dependency in an app that otherwise has none
+  (just React) -- so `HerdTab.tsx` computes its own linear scales and
+  draws `<rect>`/`<polyline>` elements directly.
+- **The Herd tab defaults to whichever DAU contains GMU 109** (falling
+  back to the first DAU alphabetically if that ever stops being true),
+  the same personalization the Home tab's Whitetail column and the
+  Draw Odds/Walk-In tabs' first-pass data both lean on -- it's the area
+  this app already centers on elsewhere.
+- **`DeerPopulationEstimates.TagQuota` exists in the schema but isn't
+  populated by any import script yet.** Comparing population against
+  tags issued means summing each DAU's GMUs' hunt-code quotas from a
+  post-draw report -- a different source than these population PDFs,
+  and one that (so far) only has deep enough history for a single
+  year (2025 Deer), not the full 2019-2025 range this tab otherwise
+  covers. The column, and the Population chart's grouped tag-quota bar,
+  are ready for it whenever that gap gets filled in.

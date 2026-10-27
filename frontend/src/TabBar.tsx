@@ -1,4 +1,4 @@
-export type AppTab = 'home' | 'myhunt' | 'access' | 'drawodds' | 'walkin';
+export type AppTab = 'home' | 'myhunt' | 'access' | 'drawodds' | 'walkin' | 'herd';
 
 const TABS: { id: AppTab; label: string }[] = [
     { id: 'home',     label: 'Home'      },
@@ -6,6 +6,7 @@ const TABS: { id: AppTab; label: string }[] = [
     { id: 'access',   label: 'Access'    },
     { id: 'walkin',   label: 'Walk-In'   },
     { id: 'drawodds', label: 'Draw Odds' },
+    { id: 'herd',     label: 'Herd'      },
     // Future tabs: hunt log.
 ];
 

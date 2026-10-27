@@ -5,6 +5,7 @@ import { MyHuntTab } from "./MyHuntTab";
 import { AccessTab } from "./AccessTab";
 import { DrawOddsTab } from "./DrawOddsTab";
 import { WalkInTab } from "./WalkInTab";
+import { HerdTab } from "./HerdTab";
 
 function App() {
     const [activeTab, setActiveTab] = useState<AppTab>("home");
@@ -21,6 +22,7 @@ function App() {
                 {activeTab === "access" && <AccessTab />}
                 {activeTab === "drawodds" && <DrawOddsTab />}
                 {activeTab === "walkin" && <WalkInTab />}
+                {activeTab === "herd" && <HerdTab />}
             </div>
         </div>
     );

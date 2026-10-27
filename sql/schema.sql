@@ -295,3 +295,39 @@ CREATE TABLE IF NOT EXISTS WalkInAreas (
 
 CREATE INDEX IF NOT EXISTS idx_WalkInAreas_GMU ON WalkInAreas (SeasonYear, GMU);
 CREATE INDEX IF NOT EXISTS idx_WalkInAreas_County ON WalkInAreas (County);
+
+-- Herd tab: CPW's annual "Post Hunt Population & Sex Ratio Estimates"
+-- (Deer), one row per DAU (Data Analysis Unit -- a group of GMUs CPW
+-- manages as one herd) per year. Source PDFs are small, genuinely linear
+-- single-page tables -- see Docs/extraction/parse_deer_population.py and
+-- README's "Updating Herd data" section.
+--
+-- DAU is kept as published TEXT, not an integer, and is NOT a stable
+-- identifier across years -- CPW restructured several DAUs in 2024 (old
+-- DAUs 21/22/25 merged into new DAU 57; old 31/37 merged into new 56), so
+-- a given DAU number can have data for only part of the 2019-2025 range.
+-- This table doesn't attempt to reconcile old/new DAU numbers into one
+-- continuous series -- it stores exactly what each year's report says,
+-- and the UI shows whatever years exist for the DAU selected.
+--
+-- HerdName is nullable because the 2019/2020/2025 reports don't include
+-- it (DAU number + GMU list only). GMUs is published display text (e.g.
+-- '103, 109, 116, 117'), not normalized -- same reasoning as AccessAreas.GMUs.
+--
+-- TagQuota is nullable and mostly unpopulated for now -- getting it
+-- requires summing each DAU's GMUs' hunt-code quotas from a post-draw
+-- report (a different source than this table's PDFs), which only exists
+-- for a handful of species/years so far. See README.
+CREATE TABLE IF NOT EXISTS DeerPopulationEstimates (
+    PopulationEstimateID INTEGER PRIMARY KEY,
+    SeasonYear         INTEGER NOT NULL,
+    DAU                TEXT NOT NULL,              -- as published, e.g. '47' -- not stable across years, see above
+    HerdName           TEXT,                        -- e.g. 'South Republican' -- absent in some years' reports
+    GMUs               TEXT NOT NULL,               -- display text, e.g. '103, 109, 116, 117'
+    PopulationEstimate INTEGER NOT NULL,
+    BuckDoeRatio       INTEGER,                      -- per 100 does
+    TagQuota           INTEGER,                      -- summed across the DAU's GMUs; mostly NULL for now, see above
+    UNIQUE (SeasonYear, DAU)
+);
+
+CREATE INDEX IF NOT EXISTS idx_DeerPopulationEstimates_DAU ON DeerPopulationEstimates (DAU);
