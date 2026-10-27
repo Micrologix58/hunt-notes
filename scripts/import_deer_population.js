@@ -4,9 +4,9 @@
 // section) into DeerPopulationEstimates.
 //
 // Idempotent: upserts on (SeasonYear, DAU), and never touches TagQuota --
-// that column comes from a different source (summed hunt-code quotas from
-// a post-draw report, not these population PDFs) and isn't populated by
-// any script yet, so re-running this import can't wipe it once it exists.
+// that column comes from a different source and a different script
+// (scripts/import_deer_tag_quotas.js, run separately after this one), so
+// re-running this import never wipes it.
 const fs = require("fs");
 const path = require("path");
 const db = require("../db");

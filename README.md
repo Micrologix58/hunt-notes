@@ -17,6 +17,7 @@ hunt-notes/
   scripts/import_hunt_codes.js    -- loads Docs/extraction/{harvest,draw_points}_*.jsonl (run by hand)
   scripts/import_walkin_areas.js  -- loads Docs/extraction/walkin_areas_*.jsonl (run by hand)
   scripts/import_deer_population.js -- loads Docs/extraction/population_deer_*.jsonl (run by hand)
+  scripts/import_deer_tag_quotas.js -- sums GMU quotas by DAU from draw_points_deer_primary_*.jsonl (run by hand)
   data/HuntNotes.db                -- SQLite file (gitignored)
   Docs/                            -- source CPW brochures/reports/atlas (PDFs gitignored -- see below)
   Docs/extraction/access_areas.jsonl -- hand-transcribed SWA/STL data, one JSON object per line
@@ -281,6 +282,53 @@ To add a new year:
    `node scripts/import_deer_population.js` -- safe to re-run; upserts
    on (SeasonYear, DAU) and never touches TagQuota.
 
+### Tag quota (the Population chart's second bar)
+
+`TagQuota` comes from a different source than the population PDFs
+above: each DAU's GMUs' **primary draw** hunt-code quotas, summed. It's
+populated for 2021-2025 (the years a Primary DEER Post Draw Report PDF
+has been provided for) -- 2019 and 2020 don't have one, so those years
+simply show no second bar, same as any other missing-data year.
+
+This reuses `Docs/extraction/parse_deer_recap.py` (the same script Draw
+Odds' preference-points data comes from -- see "Updating Draw Odds
+data" above), extended to also pull each hunt code's "Total Quota
+Amount" (top-left red box, printed just above "Remaining Balance") via
+a new `find_total_quota()` function. That change is purely additive --
+it doesn't touch the existing `huntCode`/`list`/`status` extraction, and
+was regression-tested the same way the Elk `HUNT_CODE_BOX_Y_MAX` change
+was: re-ran it against the original, already-committed Deer 2025 data
+and diffed every field except the new `totalQuota` one (zero
+differences) before trusting it on the 4 new years.
+
+To add a year:
+
+1. Drop the year's "Primary DEER Post Draw Report" PDF in `Docs/`.
+2. `python Docs/extraction/parse_deer_recap.py "Docs/<file>.pdf" deer
+   primary <year> Docs/extraction/draw_points_deer_primary_<year>.jsonl`
+   -- same parser Draw Odds uses; sanity-check the printed "Parsed N
+   hunt code pages" line against the PDF's own "Total Hunt Codes"
+   number on its first page (close is normal -- 2021 and 2022 both
+   land 5 codes short of CPW's stated total, for reasons not fully run
+   down; 2023-2025 matched exactly. A handful of hunt codes out of
+   ~950-990 statewide doesn't meaningfully move a DAU-level sum, but
+   don't expect it to always match exactly).
+3. Run `node scripts/import_deer_population.js` first if the matching
+   year's population data isn't imported yet (the quota importer reads
+   each DAU's GMU membership back from `DeerPopulationEstimates`, so it
+   has to exist first), then `node
+   scripts/import_deer_tag_quotas.js` -- recomputes and overwrites
+   `TagQuota` for every year it has a `draw_points_deer_primary_*.jsonl`
+   file for; safe to re-run.
+
+**This is primary-draw quota only** -- it doesn't include secondary
+draw or leftover/OTC tags, so it understates total tags issued for
+units that sell a meaningful number of those (the UI labels it
+"primary draw tag quota" for this reason, not just "tags"). Extending
+it to the fuller picture would mean also parsing a secondary-draw
+report and a leftover/OTC sales source, neither of which exists in
+`Docs/` yet.
+
 ## Design notes
 
 - **Draw dates are not per-species.** Colorado runs one unified
@@ -449,11 +497,13 @@ To add a new year:
   the same personalization the Home tab's Whitetail column and the
   Draw Odds/Walk-In tabs' first-pass data both lean on -- it's the area
   this app already centers on elsewhere.
-- **`DeerPopulationEstimates.TagQuota` exists in the schema but isn't
-  populated by any import script yet.** Comparing population against
-  tags issued means summing each DAU's GMUs' hunt-code quotas from a
-  post-draw report -- a different source than these population PDFs,
-  and one that (so far) only has deep enough history for a single
-  year (2025 Deer), not the full 2019-2025 range this tab otherwise
-  covers. The column, and the Population chart's grouped tag-quota bar,
-  are ready for it whenever that gap gets filled in.
+- **`DeerPopulationEstimates.TagQuota` covers 2021-2025, not the full
+  2019-2025 range the population/ratio data has.** It comes from a
+  different source (summed *primary draw* hunt-code quotas from each
+  year's Post Draw Report, via `scripts/import_deer_tag_quotas.js`) than
+  the population PDFs, and 2019/2020 don't have an equivalent report in
+  `Docs/` -- those two years just show no second bar in the Population
+  chart, the same as any other missing-data gap elsewhere in this app.
+  It's also primary-draw-only (no secondary draw or leftover/OTC), so
+  treat it as a lower bound on tags issued, not the complete count --
+  see "Updating Herd data" above.

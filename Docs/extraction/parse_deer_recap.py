@@ -15,6 +15,7 @@ Usage: python parse_deer_recap.py <pdf_path> <species> <draw_type> <season_year>
 """
 import sys
 import json
+import re
 import pymupdf
 
 PHRASE_GAP_PX = 3
@@ -59,6 +60,18 @@ def find_hunt_code_and_list(words):
     return hunt_code, list_val
 
 
+def find_total_quota(words):
+    """'Total Quota / Amount' label (top-left red box, two lines) with its
+    number directly below -- above 'Remaining Balance', the next label down."""
+    amount_w = [w for w in words if w[4] == "Amount" and w[0] < 150 and w[1] < 150]
+    if not amount_w:
+        return None
+    amount_y = amount_w[0][1]
+    candidates = [w for w in words if w[0] < 150 and amount_y + 2 < w[1] < amount_y + 30
+                  and re.match(r"^[\d,]+$", w[4])]
+    return candidates[0][4] if candidates else None
+
+
 def find_drawn_out_header(words):
     """The Res/NonRes/Res/NonRes/Unrestricted/Restricted header ~15-20pt
     directly above a 'Drawn Out At' label -- not any of the page's other
@@ -95,9 +108,10 @@ def parse_page(page):
     hunt_code, list_val = find_hunt_code_and_list(words)
     if not hunt_code:
         return None
+    total_quota = find_total_quota(words)
     header = find_drawn_out_header(words)
     if not header:
-        return {"huntCode": hunt_code, "list": list_val, "status": {}}
+        return {"huntCode": hunt_code, "list": list_val, "status": {}, "totalQuota": total_quota}
     header_x, start_y = header
 
     # This report's rows are much tighter than the compact Drawn Out At
@@ -117,7 +131,7 @@ def parse_page(page):
             cell_parts.setdefault(cat, []).append(text)
     status = {cat: " ".join(parts) for cat, parts in cell_parts.items()}
 
-    return {"huntCode": hunt_code, "list": list_val, "status": status}
+    return {"huntCode": hunt_code, "list": list_val, "status": status, "totalQuota": total_quota}
 
 
 def main():

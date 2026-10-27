@@ -314,10 +314,11 @@ CREATE INDEX IF NOT EXISTS idx_WalkInAreas_County ON WalkInAreas (County);
 -- it (DAU number + GMU list only). GMUs is published display text (e.g.
 -- '103, 109, 116, 117'), not normalized -- same reasoning as AccessAreas.GMUs.
 --
--- TagQuota is nullable and mostly unpopulated for now -- getting it
--- requires summing each DAU's GMUs' hunt-code quotas from a post-draw
--- report (a different source than this table's PDFs), which only exists
--- for a handful of species/years so far. See README.
+-- TagQuota is nullable -- it's a different source than this table's own
+-- PDFs (summed PRIMARY DRAW hunt-code quotas from a post-draw report, via
+-- scripts/import_deer_tag_quotas.js), so it's only populated for years
+-- that report exists for (2021-2025 so far, not 2019/2020). It also
+-- doesn't include secondary draw or leftover/OTC tags -- see README.
 CREATE TABLE IF NOT EXISTS DeerPopulationEstimates (
     PopulationEstimateID INTEGER PRIMARY KEY,
     SeasonYear         INTEGER NOT NULL,
@@ -326,7 +327,7 @@ CREATE TABLE IF NOT EXISTS DeerPopulationEstimates (
     GMUs               TEXT NOT NULL,               -- display text, e.g. '103, 109, 116, 117'
     PopulationEstimate INTEGER NOT NULL,
     BuckDoeRatio       INTEGER,                      -- per 100 does
-    TagQuota           INTEGER,                      -- summed across the DAU's GMUs; mostly NULL for now, see above
+    TagQuota           INTEGER,                      -- summed PRIMARY DRAW quota across the DAU's GMUs, see above
     UNIQUE (SeasonYear, DAU)
 );
 

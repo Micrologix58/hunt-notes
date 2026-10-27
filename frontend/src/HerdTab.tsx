@@ -106,7 +106,7 @@ function PopulationBarChart({ years }: { years: HerdPopulationRow[] }) {
                             </rect>
                             {y.tagQuota != null && (
                                 <rect x={cx + 2} y={scaleY(y.tagQuota)} width={barW} height={plotH - scaleY(y.tagQuota)} fill="#f59e0b" rx={2}>
-                                    <title>{`${y.seasonYear} tag quota: ${y.tagQuota.toLocaleString()}`}</title>
+                                    <title>{`${y.seasonYear} primary draw tag quota: ${y.tagQuota.toLocaleString()}`}</title>
                                 </rect>
                             )}
                             <text x={cx} y={plotH + 18} textAnchor="middle" fontSize={11} fill="#94a3b8">{y.seasonYear}</text>
@@ -199,7 +199,9 @@ export function HerdTab() {
                 <div style={{ color: "#64748b", fontSize: 12 }}>
                     CPW's annual post-hunt population estimates, 2019-2025, by Data Analysis Unit (DAU -- a group of
                     GMUs managed as one herd). CPW restructured several DAUs in 2024, so a few DAU numbers only have
-                    data for part of this range -- that's real, not a gap in the data.
+                    data for part of this range -- that's real, not a gap in the data. Tag quota (2021-2025 only) is
+                    the DAU's GMUs' summed <em>primary draw</em> quota -- it doesn't include secondary draw or
+                    leftover/OTC tags, so it understates total tags for units with meaningful volume there.
                 </div>
             </div>
             <div style={panelStyle}>
@@ -244,7 +246,7 @@ export function HerdTab() {
                                 {selected.years.some(y => y.tagQuota != null) && (
                                     <span style={{ fontWeight: 400 }}>
                                         {" "}(<span style={{ color: "#3b82f6" }}>■</span> population &nbsp;
-                                        <span style={{ color: "#f59e0b" }}>■</span> tag quota)
+                                        <span style={{ color: "#f59e0b" }}>■</span> primary draw tag quota)
                                     </span>
                                 )}
                             </div>
