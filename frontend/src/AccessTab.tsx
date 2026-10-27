@@ -17,6 +17,15 @@ const inputStyle: React.CSSProperties = {
     padding: "6px 8px", fontSize: 13, fontFamily: "inherit",
 };
 const labelStyle: React.CSSProperties = { color: "#64748b", fontSize: 12, marginRight: 4 };
+// Notes can run long (multi-sentence scouting writeups) -- a textarea that
+// wraps beats a single-line input you have to arrow across. Starts at 2
+// lines so the common case (short note or none) doesn't bloat every row,
+// but is user-resizable (vertical only, so it can't blow out the table's
+// width) for the rows that need more room.
+const notesTextareaStyle: React.CSSProperties = {
+    ...inputStyle, width: "100%", boxSizing: "border-box",
+    minHeight: 36, resize: "vertical", lineHeight: 1.4, fontFamily: "inherit",
+};
 const tableWrapStyle: React.CSSProperties = { overflowX: "auto", border: "1px solid #2a2a2a", borderRadius: 6 };
 // table-layout:fixed so these widths are actually honored instead of being
 // just a hint the browser's auto layout can override based on content.
@@ -187,8 +196,9 @@ export function AccessTab() {
                                         />
                                     </td>
                                     <td style={tdStyle}>
-                                        <input
-                                            style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                                        <textarea
+                                            rows={2}
+                                            style={notesTextareaStyle}
                                             value={a.notes}
                                             placeholder="Restrictions/issues you find…"
                                             onChange={e => updateField(a.id, "notes", e.target.value)}
