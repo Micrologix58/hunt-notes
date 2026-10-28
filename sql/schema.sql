@@ -297,38 +297,50 @@ CREATE INDEX IF NOT EXISTS idx_WalkInAreas_GMU ON WalkInAreas (SeasonYear, GMU);
 CREATE INDEX IF NOT EXISTS idx_WalkInAreas_County ON WalkInAreas (County);
 
 -- Herd tab: CPW's annual "Post Hunt Population & Sex Ratio Estimates"
--- (Deer), one row per DAU (Data Analysis Unit -- a group of GMUs CPW
--- manages as one herd) per year. Source PDFs are small, genuinely linear
--- single-page tables -- see Docs/extraction/parse_deer_population.py and
--- README's "Updating Herd data" section.
+-- (Deer, Elk so far -- same report template per species), one row per DAU
+-- (Data Analysis Unit -- a group of GMUs CPW manages as one herd) per
+-- species per year. Source PDFs are small, genuinely linear single-page
+-- tables -- see Docs/extraction/parse_herd_population.py and README's
+-- "Updating Herd data" section.
 --
 -- DAU is kept as published TEXT, not an integer, and is NOT a stable
--- identifier across years -- CPW restructured several DAUs in 2024 (old
--- DAUs 21/22/25 merged into new DAU 57; old 31/37 merged into new 56), so
--- a given DAU number can have data for only part of the 2019-2025 range.
--- This table doesn't attempt to reconcile old/new DAU numbers into one
--- continuous series -- it stores exactly what each year's report says,
--- and the UI shows whatever years exist for the DAU selected.
+-- identifier across years *or* comparable across species -- Deer DAU '01'
+-- and Elk DAU '01' are unrelated herds that happen to share a number
+-- (hence the UNIQUE key below includes Species, not just SeasonYear+DAU).
+-- CPW also restructures DAU boundaries from time to time within a species
+-- (e.g. Deer's old DAUs 21/22/25 merged into new DAU 57 in 2024; old 31/37
+-- into new 56), so a given DAU number can have data for only part of the
+-- years this table covers. This table doesn't attempt to reconcile old/new
+-- DAU numbers into one continuous series -- it stores exactly what each
+-- year's report says, and the UI shows whatever years exist for the DAU
+-- selected.
 --
--- HerdName is nullable because the 2019/2020/2025 reports don't include
--- it (DAU number + GMU list only). GMUs is published display text (e.g.
--- '103, 109, 116, 117'), not normalized -- same reasoning as AccessAreas.GMUs.
+-- HerdName is nullable because some years/species omit it (Deer
+-- 2019/2020/2025; Elk every year so far -- the report prints the column
+-- header but never actually fills it in). GMUs is published display text
+-- (e.g. '103, 109, 116, 117'), not normalized -- same reasoning as
+-- AccessAreas.GMUs.
+--
+-- SexRatio is "per 100" females either way (buck:doe for deer, bull:cow
+-- for elk, etc.) -- CPW's column header text differs by species but the
+-- shape doesn't, so one generically-named column covers all of them.
 --
 -- TagQuota is nullable -- it's a different source than this table's own
 -- PDFs (summed PRIMARY DRAW hunt-code quotas from a post-draw report, via
--- scripts/import_deer_tag_quotas.js), so it's only populated for years
--- that report exists for (2021-2025 so far, not 2019/2020). It also
--- doesn't include secondary draw or leftover/OTC tags -- see README.
-CREATE TABLE IF NOT EXISTS DeerPopulationEstimates (
+-- scripts/import_herd_tag_quotas.js), so it's only populated for
+-- species/years that report exists for. It also doesn't include secondary
+-- draw or leftover/OTC tags -- see README.
+CREATE TABLE IF NOT EXISTS HerdPopulationEstimates (
     PopulationEstimateID INTEGER PRIMARY KEY,
     SeasonYear         INTEGER NOT NULL,
+    Species            TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn', 'bear')),
     DAU                TEXT NOT NULL,              -- as published, e.g. '47' -- not stable across years, see above
-    HerdName           TEXT,                        -- e.g. 'South Republican' -- absent in some years' reports
+    HerdName           TEXT,                        -- e.g. 'South Republican' -- absent in some years/species' reports
     GMUs               TEXT NOT NULL,               -- display text, e.g. '103, 109, 116, 117'
     PopulationEstimate INTEGER NOT NULL,
-    BuckDoeRatio       INTEGER,                      -- per 100 does
+    SexRatio           INTEGER,                      -- per 100 females -- buck:doe, bull:cow, etc. depending on Species
     TagQuota           INTEGER,                      -- summed PRIMARY DRAW quota across the DAU's GMUs, see above
-    UNIQUE (SeasonYear, DAU)
+    UNIQUE (SeasonYear, Species, DAU)
 );
 
-CREATE INDEX IF NOT EXISTS idx_DeerPopulationEstimates_DAU ON DeerPopulationEstimates (DAU);
+CREATE INDEX IF NOT EXISTS idx_HerdPopulationEstimates_DAU ON HerdPopulationEstimates (Species, DAU);

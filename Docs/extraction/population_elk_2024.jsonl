@@ -1,0 +1,42 @@
+{"dau": "01", "herdName": "Cold Springs", "gmus": "2, 201", "population": "1,600", "ratio": "95", "species": "elk", "seasonYear": 2024}
+{"dau": "02", "herdName": "Bears Ears", "gmus": "3, 301, 4, 441, 5, 14, 214", "population": "15,840", "ratio": "22", "species": "elk", "seasonYear": 2024}
+{"dau": "03", "herdName": "North Park", "gmus": "6, 16, 161, 17, 171", "population": "5,160", "ratio": "24", "species": "elk", "seasonYear": 2024}
+{"dau": "04", "herdName": "Poudre River", "gmus": "7, 8, 9, 19, 191", "population": "5,410", "ratio": "19", "species": "elk", "seasonYear": 2024}
+{"dau": "05", "herdName": "West Elk Mountains", "gmus": "53, 54, 63", "population": "8,360", "ratio": "18", "species": "elk", "seasonYear": 2024}
+{"dau": "06", "herdName": "White River", "gmus": "11, 12, 13, 23, 24, 25, 26, 33, 34, 131, 211, 231", "population": "36,480", "ratio": "17", "species": "elk", "seasonYear": 2024}
+{"dau": "07", "herdName": "Gore Pass", "gmus": "15, 27", "population": "3,020", "ratio": "42", "species": "elk", "seasonYear": 2024}
+{"dau": "08", "herdName": "Troublesome Creek", "gmus": "18, 181", "population": "3,300", "ratio": "29", "species": "elk", "seasonYear": 2024}
+{"dau": "09", "herdName": "St. Vrain", "gmus": "20", "population": "2,220", "ratio": "38", "species": "elk", "seasonYear": 2024}
+{"dau": "10", "herdName": "Yellow Creek", "gmus": "21, 22, 30, 31, 32", "population": "16,110", "ratio": "20", "species": "elk", "seasonYear": 2024}
+{"dau": "11", "herdName": "Sand Dunes", "gmus": "82", "population": "5,140", "ratio": "42", "species": "elk", "seasonYear": 2024}
+{"dau": "12", "herdName": "Piney River", "gmus": "35, 36", "population": "4,450", "ratio": "31", "species": "elk", "seasonYear": 2024}
+{"dau": "13", "herdName": "Williams Fork River", "gmus": "28, 37, 371", "population": "3,560", "ratio": "40", "species": "elk", "seasonYear": 2024}
+{"dau": "14", "herdName": "Grand Mesa", "gmus": "41, 411, 42, 421, 52, 521", "population": "17,370", "ratio": "30", "species": "elk", "seasonYear": 2024}
+{"dau": "15", "herdName": "Avalanche Creek", "gmus": "43, 471", "population": "3,960", "ratio": "24", "species": "elk", "seasonYear": 2024}
+{"dau": "16", "herdName": "Frying Pan River", "gmus": "44, 444, 45, 47", "population": "10,380", "ratio": "28", "species": "elk", "seasonYear": 2024}
+{"dau": "17", "herdName": "Collegiate Range", "gmus": "48, 481, 56, 561", "population": "3,390", "ratio": "24", "species": "elk", "seasonYear": 2024}
+{"dau": "18", "herdName": "Kenosha Pass", "gmus": "50, 500, 501", "population": "3,340", "ratio": "38", "species": "elk", "seasonYear": 2024}
+{"dau": "19", "herdName": "Glade Park", "gmus": "40", "population": "6,150", "ratio": "36", "species": "elk", "seasonYear": 2024}
+{"dau": "20", "herdName": "Uncompahgre", "gmus": "61, 62", "population": "14,390", "ratio": "23", "species": "elk", "seasonYear": 2024}
+{"dau": "21", "herdName": "Rangely / Blue Mountain", "gmus": "10", "population": "1,680", "ratio": "51", "species": "elk", "seasonYear": 2024}
+{"dau": "22", "herdName": "Buffalo Peaks", "gmus": "49, 57, 58", "population": "3,780", "ratio": "33", "species": "elk", "seasonYear": 2024}
+{"dau": "23", "herdName": "Eleven Mile", "gmus": "511, 512, 581, 59, 591", "population": "3,860", "ratio": "33", "species": "elk", "seasonYear": 2024}
+{"dau": "24", "herdName": "Disappointment Creek", "gmus": "70, 71, 711, 72, 73", "population": "24,350", "ratio": "12", "species": "elk", "seasonYear": 2024}
+{"dau": "25", "herdName": "Lake Fork", "gmus": "66, 67", "population": "6,110", "ratio": "17", "species": "elk", "seasonYear": 2024}
+{"dau": "26", "herdName": "Saguache", "gmus": "68, 681", "population": "5,510", "ratio": "21", "species": "elk", "seasonYear": 2024}
+{"dau": "27", "herdName": "Sangre de Cristo", "gmus": "86, 691, 861", "population": "2,890", "ratio": "18", "species": "elk", "seasonYear": 2024}
+{"dau": "28", "herdName": "Grape Creek", "gmus": "69, 84", "population": "2,420", "ratio": "29", "species": "elk", "seasonYear": 2024}
+{"dau": "30", "herdName": "Hermosa", "gmus": "74, 741", "population": "7,270", "ratio": "18", "species": "elk", "seasonYear": 2024}
+{"dau": "31", "herdName": "San Juan", "gmus": "75, 751, 77, 771, 78", "population": "21,170", "ratio": "2", "species": "elk", "seasonYear": 2024}
+{"dau": "32", "herdName": "Loqwer Rio Grande", "gmus": "80, 81", "population": "14,480", "ratio": "19", "species": "elk", "seasonYear": 2024}
+{"dau": "33", "herdName": "Trinchera", "gmus": "83, 85, 851, 140", "population": "15,530", "ratio": "32", "species": "elk", "seasonYear": 2024}
+{"dau": "34", "herdName": "Upper Rio Grande", "gmus": "76, 79", "population": "6,050", "ratio": "31", "species": "elk", "seasonYear": 2024}
+{"dau": "35", "herdName": "Cimarron", "gmus": "64, 65", "population": "6,430", "ratio": "28", "species": "elk", "seasonYear": 2024}
+{"dau": "38", "herdName": "Clear Creek", "gmus": "29, 38", "population": "1,600", "ratio": "36", "species": "elk", "seasonYear": 2024}
+{"dau": "39", "herdName": "Mt Evans", "gmus": "39, 46, 391, 461", "population": "2,300", "ratio": "29", "species": "elk", "seasonYear": 2024}
+{"dau": "40", "herdName": "Paradox", "gmus": "60", "population": "1,320", "ratio": "34", "species": "elk", "seasonYear": 2024}
+{"dau": "43", "herdName": "East Gunnison Basin", "gmus": "55, 551", "population": "7,310", "ratio": "24", "species": "elk", "seasonYear": 2024}
+{"dau": "47", "herdName": "Green River", "gmus": "1", "population": "200", "ratio": "33", "species": "elk", "seasonYear": 2024}
+{"dau": "51", "herdName": "Castle Rock", "gmus": "51, 104, 105, 106, 110, 111", "population": "3,090", "ratio": "39", "species": "elk", "seasonYear": 2024}
+{"dau": "53", "herdName": "Apishipa", "gmus": "133, 134, 135, 141, 142", "population": "1,480", "ratio": "33", "species": "elk", "seasonYear": 2024}
+{"dau": "55", "herdName": "Northern San Luis Valley Floor 682,", "gmus": "791", "population": "150", "ratio": "14", "species": "elk", "seasonYear": 2024}

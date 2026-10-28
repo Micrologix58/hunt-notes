@@ -540,21 +540,21 @@ app.put("/api/walkin-areas/:id", (req, res) => {
     }
 });
 
-// ─── Herd tab: Deer population estimates & buck/doe ratios by DAU ─────────
+// ─── Herd tab: population estimates & sex ratios by DAU, per species ──────
 //
 // Reference data transcribed from CPW's annual "Post Hunt Population & Sex
 // Ratio Estimates" PDFs (see sql/schema.sql and
-// scripts/import_deer_population.js) -- read-only, no user-editable fields
-// on this tab. One small endpoint: the whole dataset (369 rows across 7
-// years) is tiny, so the frontend groups it by DAU itself rather than
-// this needing a per-DAU query parameter.
+// scripts/import_herd_population.js) -- read-only, no user-editable fields
+// on this tab. One small endpoint: the whole dataset (currently ~660 rows
+// across Deer and Elk) is tiny, so the frontend groups it by species+DAU
+// itself rather than this needing query parameters.
 app.get("/api/herd-population", (req, res) => {
     try {
         const rows = db.prepare(`
-            SELECT SeasonYear AS seasonYear, DAU AS dau, HerdName AS herdName, GMUs AS gmus,
-                   PopulationEstimate AS populationEstimate, BuckDoeRatio AS buckDoeRatio, TagQuota AS tagQuota
-            FROM DeerPopulationEstimates
-            ORDER BY DAU, SeasonYear
+            SELECT SeasonYear AS seasonYear, Species AS species, DAU AS dau, HerdName AS herdName, GMUs AS gmus,
+                   PopulationEstimate AS populationEstimate, SexRatio AS sexRatio, TagQuota AS tagQuota
+            FROM HerdPopulationEstimates
+            ORDER BY Species, DAU, SeasonYear
         `).all();
         res.json({ success: true, data: rows });
     } catch (err) {

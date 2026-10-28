@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchHerdPopulation, type HerdPopulationRow } from "./services/herdPopulationApi";
+import { fetchHerdPopulation, type HerdPopulationRow, type HerdSpecies } from "./services/herdPopulationApi";
 
 type DauKey = {
     dau: string;
@@ -7,6 +7,19 @@ type DauKey = {
     gmus: string;
     years: HerdPopulationRow[];
 };
+
+// Order controls the species-tab display order; label/sexRatioLabel are
+// generic enough to cover each species' terminology (CPW's ratio column is
+// "Buck/Doe" for deer, "Bull/Cow" for elk, etc., but it's always the same
+// "males per 100 females" shape) without hardcoding one species' wording
+// into the chart components.
+const SPECIES_META: Record<HerdSpecies, { label: string; sexRatioLabel: string; maleTerm: string }> = {
+    deer: { label: "Deer", sexRatioLabel: "Buck/Doe Ratio (per 100 does)", maleTerm: "buck" },
+    elk: { label: "Elk", sexRatioLabel: "Bull/Cow Ratio (per 100 cows)", maleTerm: "bull" },
+    pronghorn: { label: "Pronghorn", sexRatioLabel: "Buck/Doe Ratio (per 100 does)", maleTerm: "buck" },
+    bear: { label: "Bear", sexRatioLabel: "Sex Ratio (per 100 females)", maleTerm: "male" },
+};
+const SPECIES_ORDER: HerdSpecies[] = ["deer", "elk", "pronghorn", "bear"];
 
 const panelStyle: React.CSSProperties = {
     background: "#141414", border: "1px solid #2a2a2a", borderRadius: 8,
@@ -28,14 +41,20 @@ const dauRowStyle = (active: boolean): React.CSSProperties => ({
 });
 const dauTitleStyle: React.CSSProperties = { color: "#e2e8f0", fontSize: 13, fontWeight: 600 };
 const dauSubStyle: React.CSSProperties = { color: "#64748b", fontSize: 11, marginTop: 2 };
+const speciesTabStyle = (active: boolean): React.CSSProperties => ({
+    padding: "6px 14px", cursor: "pointer", fontSize: 13, fontFamily: "inherit",
+    background: active ? "#1e3a5f" : "transparent", color: active ? "#e2e8f0" : "#64748b",
+    border: "none", borderBottom: active ? "2px solid #3b82f6" : "2px solid transparent", fontWeight: active ? 600 : 400,
+});
 
 function parseDauNum(dau: string): number {
     return parseInt(dau, 10);
 }
 
-function buildDauKeys(rows: HerdPopulationRow[]): DauKey[] {
+function buildDauKeys(rows: HerdPopulationRow[], species: HerdSpecies): DauKey[] {
     const byDau = new Map<string, HerdPopulationRow[]>();
     for (const r of rows) {
+        if (r.species !== species) continue;
         const arr = byDau.get(r.dau) ?? [];
         arr.push(r);
         byDau.set(r.dau, arr);
@@ -45,10 +64,11 @@ function buildDauKeys(rows: HerdPopulationRow[]): DauKey[] {
         years.sort((a, b) => a.seasonYear - b.seasonYear);
         const latest = years[years.length - 1];
         // Herd names are static, just missing from a couple of report
-        // editions (2019/2020/2025) -- fall back to the most recent year
-        // that *did* print one rather than showing blank for a DAU whose
-        // latest year happens to be one of those editions (e.g. DAU 47
-        // has a name in 2021-2024 but 2025 omitted the column again).
+        // editions (Deer 2019/2020/2025; Elk every year so far) -- fall
+        // back to the most recent year that *did* print one rather than
+        // showing blank for a DAU whose latest year happens to omit it
+        // (e.g. Deer DAU 47 has a name in 2021-2024 but 2025 omitted the
+        // column again).
         const namedYear = [...years].reverse().find(y => y.herdName != null);
         keys.push({ dau, herdName: namedYear?.herdName ?? null, gmus: latest.gmus, years });
     }
@@ -118,24 +138,24 @@ function PopulationBarChart({ years }: { years: HerdPopulationRow[] }) {
     );
 }
 
-function RatioLineChart({ years }: { years: HerdPopulationRow[] }) {
+function RatioLineChart({ years, maleTerm }: { years: HerdPopulationRow[]; maleTerm: string }) {
     const plotW = CHART_W - MARGIN.left - MARGIN.right;
     const plotH = LINE_CHART_H - MARGIN.top - MARGIN.bottom;
-    const withRatio = years.filter(y => y.buckDoeRatio != null);
-    const maxVal = niceMax(Math.max(...withRatio.map(y => y.buckDoeRatio as number), 10) * 1.15);
+    const withRatio = years.filter(y => y.sexRatio != null);
+    const maxVal = niceMax(Math.max(...withRatio.map(y => y.sexRatio as number), 10) * 1.15);
     const stepX = years.length > 1 ? plotW / (years.length - 1) : 0;
     const scaleX = (i: number) => i * stepX;
     const scaleY = (v: number) => plotH - (v / maxVal) * plotH;
 
     const points = years
-        .map((y, i) => (y.buckDoeRatio != null ? `${scaleX(i)},${scaleY(y.buckDoeRatio)}` : null))
+        .map((y, i) => (y.sexRatio != null ? `${scaleX(i)},${scaleY(y.sexRatio)}` : null))
         .filter((p): p is string => p != null)
         .join(" ");
 
     const ticks = [0, 0.5, 1].map(f => Math.round(maxVal * f));
 
     return (
-        <svg width={CHART_W} height={LINE_CHART_H} role="img" aria-label="Buck/doe ratio by year">
+        <svg width={CHART_W} height={LINE_CHART_H} role="img" aria-label="Sex ratio by year">
             <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
                 {ticks.map(t => (
                     <g key={t}>
@@ -144,10 +164,10 @@ function RatioLineChart({ years }: { years: HerdPopulationRow[] }) {
                     </g>
                 ))}
                 <polyline points={points} fill="none" stroke="#22c55e" strokeWidth={2} />
-                {years.map((y, i) => y.buckDoeRatio != null && (
+                {years.map((y, i) => y.sexRatio != null && (
                     <g key={y.seasonYear}>
-                        <circle cx={scaleX(i)} cy={scaleY(y.buckDoeRatio)} r={3.5} fill="#22c55e">
-                            <title>{`${y.seasonYear} buck/doe ratio: ${y.buckDoeRatio} per 100`}</title>
+                        <circle cx={scaleX(i)} cy={scaleY(y.sexRatio)} r={3.5} fill="#22c55e">
+                            <title>{`${y.seasonYear} ${maleTerm}s per 100 females: ${y.sexRatio}`}</title>
                         </circle>
                         <text x={scaleX(i)} y={plotH + 18} textAnchor="middle" fontSize={11} fill="#94a3b8">{y.seasonYear}</text>
                     </g>
@@ -157,25 +177,40 @@ function RatioLineChart({ years }: { years: HerdPopulationRow[] }) {
     );
 }
 
+function pickDefaultDau(rows: HerdPopulationRow[], species: HerdSpecies): string | null {
+    const speciesRows = rows.filter(r => r.species === species);
+    // Default to the DAU covering GMU 109 if present (the area this app's
+    // other tabs already center on), else the first DAU for that species.
+    const home = speciesRows.find(r => r.gmus.split(",").map(g => g.trim()).includes("109"));
+    if (home) return home.dau;
+    const sorted = [...speciesRows].sort((a, b) => parseDauNum(a.dau) - parseDauNum(b.dau));
+    return sorted[0]?.dau ?? null;
+}
+
 export function HerdTab() {
     const [rows, setRows] = useState<HerdPopulationRow[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState("");
+    const [species, setSpecies] = useState<HerdSpecies>("deer");
     const [selectedDau, setSelectedDau] = useState<string | null>(null);
 
     useEffect(() => {
         fetchHerdPopulation()
             .then(data => {
                 setRows(data);
-                // Default to the DAU covering GMU 109 if present (the area
-                // this app's other tabs already center on), else the first.
-                const home = data.find(r => r.gmus.split(",").map(g => g.trim()).includes("109"));
-                setSelectedDau(home ? home.dau : data[0]?.dau ?? null);
+                const firstSpecies = SPECIES_ORDER.find(s => data.some(r => r.species === s)) ?? "deer";
+                setSpecies(firstSpecies);
+                setSelectedDau(pickDefaultDau(data, firstSpecies));
             })
             .catch(err => setError(err instanceof Error ? err.message : "Failed to load"));
     }, []);
 
-    const dauKeys = useMemo(() => (rows ? buildDauKeys(rows) : []), [rows]);
+    const availableSpecies = useMemo(
+        () => (rows ? SPECIES_ORDER.filter(s => rows.some(r => r.species === s)) : []),
+        [rows]
+    );
+
+    const dauKeys = useMemo(() => (rows ? buildDauKeys(rows, species) : []), [rows, species]);
 
     const visibleKeys = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -188,6 +223,13 @@ export function HerdTab() {
     }, [dauKeys, search]);
 
     const selected = dauKeys.find(k => k.dau === selectedDau) ?? null;
+    const meta = SPECIES_META[species];
+
+    const handleSpeciesChange = (next: HerdSpecies) => {
+        setSpecies(next);
+        setSearch("");
+        if (rows) setSelectedDau(pickDefaultDau(rows, next));
+    };
 
     if (error) return <div style={{ padding: 24, color: "#ef4444" }}>{error}</div>;
     if (rows == null) return <div style={{ padding: 24, color: "#94a3b8" }}>Loading…</div>;
@@ -195,15 +237,26 @@ export function HerdTab() {
     return (
         <div style={{ padding: "0", maxWidth: 1100 }}>
             <div style={{ padding: "20px 24px 0" }}>
-                <h3 style={{ color: "#e2e8f0", margin: "0 0 4px" }}>Herd -- Deer Population & Sex Ratio by DAU</h3>
+                <h3 style={{ color: "#e2e8f0", margin: "0 0 4px" }}>Herd -- Population & Sex Ratio by DAU</h3>
                 <div style={{ color: "#64748b", fontSize: 12 }}>
-                    CPW's annual post-hunt population estimates, 2019-2025, by Data Analysis Unit (DAU -- a group of
-                    GMUs managed as one herd). CPW restructured several DAUs in 2024, so a few DAU numbers only have
-                    data for part of this range -- that's real, not a gap in the data. Tag quota (2021-2025 only) is
-                    the DAU's GMUs' summed <em>primary draw</em> quota -- it doesn't include secondary draw or
-                    leftover/OTC tags, so it understates total tags for units with meaningful volume there.
+                    CPW's annual post-hunt population estimates by Data Analysis Unit (DAU -- a group of GMUs managed
+                    as one herd). DAU numbers are per-species (Deer DAU 01 and Elk DAU 01 are unrelated herds) and
+                    not always stable across years within a species -- Deer in particular had several DAUs
+                    restructured in 2024, so a few DAU numbers only have data for part of the range covered. Tag
+                    quota is the DAU's GMUs' summed <em>primary draw</em> quota, where that data exists -- it
+                    doesn't include secondary draw or leftover/OTC tags, so it understates total tags for units
+                    with meaningful volume there.
                 </div>
             </div>
+            {availableSpecies.length > 1 && (
+                <div style={{ display: "flex", gap: 4, padding: "10px 24px 0" }}>
+                    {availableSpecies.map(s => (
+                        <button key={s} style={speciesTabStyle(s === species)} onClick={() => handleSpeciesChange(s)}>
+                            {SPECIES_META[s].label}
+                        </button>
+                    ))}
+                </div>
+            )}
             <div style={panelStyle}>
                 <div style={keyColStyle}>
                     <div style={{ padding: 12, borderBottom: "1px solid #2a2a2a" }}>
@@ -235,7 +288,7 @@ export function HerdTab() {
                     {selected && (
                         <>
                             <div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 600, marginBottom: 2 }}>
-                                DAU {selected.dau}{selected.herdName ? ` -- ${selected.herdName}` : ""}
+                                {meta.label} DAU {selected.dau}{selected.herdName ? ` -- ${selected.herdName}` : ""}
                             </div>
                             <div style={{ color: "#64748b", fontSize: 12, marginBottom: 16 }}>
                                 GMUs: {selected.gmus} &middot; {selected.years.length} year{selected.years.length === 1 ? "" : "s"} of data
@@ -253,9 +306,9 @@ export function HerdTab() {
                             <PopulationBarChart years={selected.years} />
 
                             <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 600, margin: "18px 0 6px" }}>
-                                Buck/Doe Ratio (per 100 does)
+                                {meta.sexRatioLabel}
                             </div>
-                            <RatioLineChart years={selected.years} />
+                            <RatioLineChart years={selected.years} maleTerm={meta.maleTerm} />
                         </>
                     )}
                 </div>

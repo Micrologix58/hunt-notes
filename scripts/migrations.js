@@ -228,6 +228,46 @@ function addBearToMyHuntLeftoverPurchases(db) {
     console.log("Migration: added 'bear' to MyHuntLeftoverPurchases.SpeciesKey, preserving existing rows.");
 }
 
+// The Herd tab started Deer-only (DeerPopulationEstimates, no Species
+// column, UNIQUE on SeasonYear+DAU only -- fine when DAU numbers only ever
+// meant one species). Adding Elk means DAU numbers collide across species
+// (Deer DAU '01' and Elk DAU '01' are unrelated herds), so this renames
+// the table to the species-generic HerdPopulationEstimates, adds Species
+// (backfilled 'deer' for existing rows), renames BuckDoeRatio -> SexRatio,
+// and widens the UNIQUE key to SeasonYear+Species+DAU. Preserves existing
+// rows (369 Deer rows took real effort -- hand-transcribed 2022, careful
+// multi-year parsing -- not something to casually reimport) rather than
+// dropping and reimporting the way WalkInAreas' earlier migrations did.
+function renameDeerPopulationEstimatesToHerdPopulationEstimates(db) {
+    if (hasTable(db, "HerdPopulationEstimates")) return;
+    if (!hasTable(db, "DeerPopulationEstimates")) return;
+    db.exec(`
+        ALTER TABLE DeerPopulationEstimates RENAME TO DeerPopulationEstimates_old;
+        CREATE TABLE HerdPopulationEstimates (
+            PopulationEstimateID INTEGER PRIMARY KEY,
+            SeasonYear         INTEGER NOT NULL,
+            Species            TEXT NOT NULL CHECK (Species IN ('deer', 'elk', 'pronghorn', 'bear')),
+            DAU                TEXT NOT NULL,
+            HerdName           TEXT,
+            GMUs               TEXT NOT NULL,
+            PopulationEstimate INTEGER NOT NULL,
+            SexRatio           INTEGER,
+            TagQuota           INTEGER,
+            UNIQUE (SeasonYear, Species, DAU)
+        );
+        INSERT INTO HerdPopulationEstimates (
+            PopulationEstimateID, SeasonYear, Species, DAU, HerdName, GMUs,
+            PopulationEstimate, SexRatio, TagQuota
+        )
+        SELECT
+            PopulationEstimateID, SeasonYear, 'deer', DAU, HerdName, GMUs,
+            PopulationEstimate, BuckDoeRatio, TagQuota
+        FROM DeerPopulationEstimates_old;
+        DROP TABLE DeerPopulationEstimates_old;
+    `);
+    console.log("Migration: renamed DeerPopulationEstimates to HerdPopulationEstimates (added Species, renamed BuckDoeRatio to SexRatio), preserving existing rows.");
+}
+
 function runMigrations(db) {
     dropLegacyMyHuntLeftoverColumns(db);
     addMyHuntPlansPreferencePoints(db);
@@ -237,6 +277,7 @@ function runMigrations(db) {
     addBearToHuntCodeDrawPoints(db);
     addBearToMyHuntPlans(db);
     addBearToMyHuntLeftoverPurchases(db);
+    renameDeerPopulationEstimatesToHerdPopulationEstimates(db);
 }
 
 module.exports = { runMigrations };

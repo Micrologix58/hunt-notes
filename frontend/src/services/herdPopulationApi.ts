@@ -1,10 +1,13 @@
+export type HerdSpecies = "deer" | "elk" | "pronghorn" | "bear";
+
 export type HerdPopulationRow = {
     seasonYear: number;
+    species: HerdSpecies;
     dau: string;
     herdName: string | null;
     gmus: string;
     populationEstimate: number;
-    buckDoeRatio: number | null;
+    sexRatio: number | null;
     tagQuota: number | null;
 };
 
