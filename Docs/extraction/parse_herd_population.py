@@ -129,11 +129,45 @@ def parse_lines(lines):
             # its shape.
             break
 
-        population = lines[i] if i < n else ""
-        i += 1
-        ratio = lines[i] if i < n and NUMBER_RE.match(lines[i]) else None
-        if ratio is not None:
-            i += 1
+        # Population and ratio are each optional -- a DAU can be listed
+        # (GMUs known) with no estimate yet, e.g. a just-created DAU with
+        # no survey history (Pronghorn 2025's DAU 22, GMU 30 split out
+        # that year, prints blank Estimate/Ratio cells). The trouble: a
+        # missing population's "slot" is immediately followed by the
+        # *next* DAU's token, which is itself a small bare number --
+        # indistinguishable from a real population or ratio value by
+        # shape alone. Resolved by tentatively consuming 0, 1, or 2
+        # trailing numeric fields and checking which choice leaves the
+        # stream at a sensible next token: another DAU row, "Total
+        # Statewide", end of data, or textual content (a footnote/date/
+        # title -- recognized by containing a letter, since GMU lists
+        # never do -- meaning real data legitimately ended here).
+        # Backtracks otherwise, rather than assuming the first numeric-
+        # looking line is always real.
+        def sensible_next(pos):
+            if pos >= n:
+                return True
+            line = lines[pos]
+            return bool(DAU_RE.match(line) or line.startswith("Total Statewide") or re.search(r"[A-Za-z]", line))
+
+        population, ratio = None, None
+        if i < n and NUMBER_RE.match(lines[i]):
+            j = i + 1
+            ratio_candidate = None
+            if j < n and re.match(r"^\d{1,3}$", lines[j]):
+                ratio_candidate = lines[j]
+                j += 1
+            if sensible_next(j):
+                population, ratio, i = lines[i], ratio_candidate, j
+            elif sensible_next(i + 1):
+                population, i = lines[i], i + 1
+
+        if population is None:
+            # No estimate for this DAU yet -- record it exists (so GMU
+            # membership is still known for e.g. tag-quota summation) but
+            # skip it for the population/ratio series, which require a
+            # real number.
+            continue
 
         records.append({
             "dau": dau,

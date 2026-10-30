@@ -91,6 +91,7 @@ function importYear(species, seasonYear, filePath) {
 const SPECIES_YEARS = [
     ["deer", [2021, 2022, 2023, 2024, 2025]],
     ["elk", [2021, 2022, 2023, 2024, 2025]],
+    ["pronghorn", [2022, 2023, 2024, 2025]],
 ];
 
 function main() {

@@ -224,8 +224,8 @@ To add, split, or refine entries:
 ## Updating Herd data (population estimates & sex ratios, by species)
 
 CPW publishes an annual "Post Hunt Population & Sex Ratio Estimates"
-PDF per species (currently Deer and Elk; same template for Pronghorn/
-Bear whenever those get added) -- one row per DAU (Data Analysis Unit,
+PDF per species (currently Deer, Elk and Pronghorn; same template for
+Bear whenever that gets added) -- one row per DAU (Data Analysis Unit,
 a group of GMUs managed as one herd): DAU number, herd name (most
 years), the GMUs involved, the post-hunt population estimate, and the
 sex ratio (buck:doe, bull:cow, etc. -- same "per 100 females" shape
@@ -255,24 +255,57 @@ report happens to do that year or species:
   1, or 2). Detected by the distinctive phrase "not in a DAU" (not the
   DAU number, in case another species' report files it under a
   different one) and skipped rather than guessed at.
+- Population and ratio are each optional -- a DAU can be listed (GMUs
+  known) with no estimate printed yet, e.g. a just-created DAU with no
+  survey history (Pronghorn 2025's DAU 22, GMU 30 split out that year,
+  prints blank Estimate/Ratio cells). Naively, a missing population's
+  "slot" is immediately followed by the *next* DAU's own token, which
+  is itself a small bare number -- indistinguishable from a real
+  population/ratio value by shape alone, so an early version of this
+  parser mis-read it as DAU 22's population and threw off every row
+  after it. Fixed with a lookahead: tentatively consume 0, 1, or 2
+  trailing numeric fields, then check whether the line that follows is
+  "sensible" (another DAU row, `Total Statewide`, end of data, or
+  footnote/date/title text -- recognized by containing a letter, since
+  GMU lists never do), backtracking to fewer fields if not. (The
+  letter check specifically matters: a first attempt using only "looks
+  like a DAU number" as the sensible-next signal caused a *regression*
+  on Deer 2024's last row, because a genuine ratio value like `37` also
+  trivially looks like a valid DAU token -- caught by re-running the
+  regression tests below before trusting the change.)
 
-**Two files (`2022DeerPopulationEstimates.pdf`,
-`2022ElkPopulationEstimates.pdf`) resisted all of this.** Both use an
-embedded Type3 font with no usable character mapping, so
-`page.get_text()` comes back as garbage bytes no matter what -- not a
-parsing bug to fix, just an unextractable PDF (apparently whatever
-produced CPW's 2022 editions specifically had this problem across
-species). Their data (`population_deer_2022.jsonl`,
-`population_elk_2022.jsonl`) was transcribed by hand from the rendered
-page image instead, then cross-checked field-by-field against the
-adjacent year's parsed output (DAU boundaries usually don't change
-year to year, so herd name and GMU list should match row for row) --
-for Elk this caught two real transcription typos ("Loqwer Rio Grande"
--> "Lower Rio Grande", an inconsistent slash-spacing in "Rangely/Blue
-Mountain") before trusting it. One flagged mismatch (DAU 43: "East
-Gunnison Basin" in 2022 vs. "Fossil Ridge" in 2021/2023, same GMUs)
-was re-verified against the rendered image and kept as-is -- a genuine
-alternate name CPW used that one year, not a transcription error.
+**Three files (`2022DeerPopulationEstimates.pdf`,
+`2022ElkPopulationEstimates.pdf`, `2022PronghornPopulationEstimates.pdf`)
+resisted all of this.** All three use an embedded Type3 font with no
+usable character mapping, so `page.get_text()` comes back as garbage
+bytes no matter what -- not a parsing bug to fix, just an unextractable
+PDF (apparently whatever produced CPW's 2022 editions specifically had
+this problem across species). Their data (`population_deer_2022.jsonl`,
+`population_elk_2022.jsonl`, `population_pronghorn_2022.jsonl`) was
+transcribed by hand from the rendered page image instead, then
+cross-checked field-by-field against the adjacent year's parsed output
+(DAU boundaries usually don't change year to year, so herd name and GMU
+list should match row for row) -- for Elk this caught two real
+transcription typos ("Loqwer Rio Grande" -> "Lower Rio Grande", an
+inconsistent slash-spacing in "Rangely/Blue Mountain") before trusting
+it. One flagged mismatch (DAU 43: "East Gunnison Basin" in 2022 vs.
+"Fossil Ridge" in 2021/2023, same GMUs) was re-verified against the
+rendered image and kept as-is -- a genuine alternate name CPW used that
+one year, not a transcription error. Pronghorn 2022's GMU lists matched
+2021/2023 exactly for all 28 DAUs with no transcription issues; its
+transcribed population total (73,442) also landed within 2 of the
+report's own printed "Total Statewide Estimate" (73,440), a sensible
+rounding-level gap, not a sign of a typo.
+
+**Pronghorn's 2024 and 2025 reports are titled "PRE HUNT" instead of
+"POST HUNT" population estimates**, even though the column header
+inside the table still reads "Post Hunt Estimate" -- a genuine CPW
+labeling inconsistency, not a parsing issue. Pre-hunt and post-hunt
+counts measure different points in the season (before vs. after
+harvest), so they aren't strictly apples-to-apples with the 2019-2023
+post-hunt numbers in a naive multi-year comparison; this app doesn't
+attempt to correct for it, just surfaces whatever each year's report
+says.
 
 **DAU numbers are not stable identifiers across years, or comparable
 across species.** Deer DAU `01` and Elk DAU `01` are unrelated herds
@@ -295,7 +328,10 @@ herd-name discontinuities between adjacent years before trusting a
 
 To add a new species or year:
 
-1. Drop the new report PDF in `Docs/`.
+1. Drop the new report PDF in `Docs/`. (If a batch upload lands
+   duplicate copies with a ` (1)` suffix -- seen with Pronghorn's 2024
+   Post Draw Report, 2025 population estimates, and 2025 draw recap --
+   just ignore the duplicate; don't parse both.)
 2. Check it extracts cleanly first: `python -c "import pymupdf;
    print(pymupdf.open('Docs/<file>.pdf')[0].get_text()[:500])"` -- if it
    comes back readable, proceed to step 3; if it's garbled like both
@@ -322,9 +358,10 @@ To add a new species or year:
 `TagQuota` comes from a different source than the population PDFs
 above: each DAU's GMUs' **primary draw** hunt-code quotas, summed. It's
 only populated for species/years where a matching Post Draw Report PDF
-has been provided (Deer and Elk 2021-2025 so far) -- years or species
-without one simply show no second bar, same as any other missing-data
-gap elsewhere in this app.
+has been provided (Deer and Elk 2021-2025, Pronghorn 2022-2025 -- no
+2021 Pronghorn draw-recap was available) -- years or species without
+one simply show no second bar, same as any other missing-data gap
+elsewhere in this app.
 
 This reuses `Docs/extraction/parse_deer_recap.py` (the same script Draw
 Odds' preference-points data comes from, for every species -- despite
