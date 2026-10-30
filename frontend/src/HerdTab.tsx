@@ -199,18 +199,33 @@ function RatioLineChart({ years, maleTerm }: { years: HerdPopulationRow[]; maleT
     );
 }
 
-function TagsVsHarvestBarChart({ years }: { years: BearGmuStatsRow[] }) {
+// Bear's tag quota and harvest are wildly different magnitudes (quota is
+// often a non-binding cap in the thousands -- status "Leftover" for every
+// applicant category -- while harvest is a real count in the tens), so
+// sharing one y-axis the way Population/TagQuota do above would make
+// harvest all but invisible. Two independently-scaled charts instead, same
+// "stack two single-series charts" pattern as Population + RatioLine.
+function SingleSeriesBarChart({
+    years, color, height, valueOf, titleOf, chartLabel,
+}: {
+    years: BearGmuStatsRow[];
+    color: string;
+    height: number;
+    valueOf: (y: BearGmuStatsRow) => number | null;
+    titleOf: (y: BearGmuStatsRow) => string;
+    chartLabel: string;
+}) {
     const plotW = CHART_W - MARGIN.left - MARGIN.right;
-    const plotH = BAR_CHART_H - MARGIN.top - MARGIN.bottom;
-    const maxVal = niceMax(Math.max(...years.map(y => Math.max(y.tagQuota ?? 0, y.harvest ?? 0)), 1) * 1.05);
+    const plotH = height - MARGIN.top - MARGIN.bottom;
+    const maxVal = niceMax(Math.max(...years.map(y => valueOf(y) ?? 0), 1) * 1.05);
     const groupW = plotW / years.length;
-    const barW = Math.min(36, groupW * 0.32);
+    const barW = Math.min(36, groupW * 0.5);
     const scaleY = (v: number) => plotH - (v / maxVal) * plotH;
 
     const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(maxVal * f));
 
     return (
-        <svg width={CHART_W} height={BAR_CHART_H} role="img" aria-label="Tag quota vs harvest by year">
+        <svg width={CHART_W} height={height} role="img" aria-label={chartLabel}>
             <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
                 {ticks.map(t => (
                     <g key={t}>
@@ -220,18 +235,14 @@ function TagsVsHarvestBarChart({ years }: { years: BearGmuStatsRow[] }) {
                         </text>
                     </g>
                 ))}
-                {years.map(y => {
-                    const cx = years.indexOf(y) * groupW + groupW / 2;
+                {years.map((y, i) => {
+                    const v = valueOf(y);
+                    const cx = i * groupW + groupW / 2;
                     return (
                         <g key={y.seasonYear}>
-                            {y.tagQuota != null && (
-                                <rect x={cx - barW - 2} y={scaleY(y.tagQuota)} width={barW} height={plotH - scaleY(y.tagQuota)} fill="#f59e0b" rx={2}>
-                                    <title>{`${y.seasonYear} primary draw tag quota: ${y.tagQuota.toLocaleString()}`}</title>
-                                </rect>
-                            )}
-                            {y.harvest != null && (
-                                <rect x={cx + 2} y={scaleY(y.harvest)} width={barW} height={plotH - scaleY(y.harvest)} fill="#3b82f6" rx={2}>
-                                    <title>{`${y.seasonYear} harvest: ${y.harvest.toLocaleString()}`}</title>
+                            {v != null && (
+                                <rect x={cx - barW / 2} y={scaleY(v)} width={barW} height={plotH - scaleY(v)} fill={color} rx={2}>
+                                    <title>{titleOf(y)}</title>
                                 </rect>
                             )}
                             <text x={cx} y={plotH + 18} textAnchor="middle" fontSize={11} fill="#94a3b8">{y.seasonYear}</text>
@@ -403,13 +414,28 @@ export function HerdTab() {
                                     </div>
 
                                     <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
-                                        Tag Quota vs Harvest
-                                        <span style={{ fontWeight: 400 }}>
-                                            {" "}(<span style={{ color: "#f59e0b" }}>■</span> primary draw tag quota &nbsp;
-                                            <span style={{ color: "#3b82f6" }}>■</span> harvest)
-                                        </span>
+                                        Primary Draw Tag Quota
                                     </div>
-                                    <TagsVsHarvestBarChart years={selectedGmuKey.years} />
+                                    <SingleSeriesBarChart
+                                        years={selectedGmuKey.years}
+                                        color="#f59e0b"
+                                        height={BAR_CHART_H}
+                                        valueOf={y => y.tagQuota}
+                                        titleOf={y => `${y.seasonYear} primary draw tag quota: ${(y.tagQuota ?? 0).toLocaleString()}`}
+                                        chartLabel="Primary draw tag quota by year"
+                                    />
+
+                                    <div style={{ color: "#94a3b8", fontSize: 12, fontWeight: 600, margin: "18px 0 6px" }}>
+                                        Harvest
+                                    </div>
+                                    <SingleSeriesBarChart
+                                        years={selectedGmuKey.years}
+                                        color="#3b82f6"
+                                        height={LINE_CHART_H}
+                                        valueOf={y => y.harvest}
+                                        titleOf={y => `${y.seasonYear} harvest: ${(y.harvest ?? 0).toLocaleString()}`}
+                                        chartLabel="Harvest by year"
+                                    />
                                 </>
                             )}
                         </div>
