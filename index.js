@@ -563,6 +563,37 @@ app.get("/api/herd-population", (req, res) => {
     }
 });
 
+// ─── Herd tab: GMU-level tags vs harvest, for non-herd species (Bear) ──────
+//
+// Bear isn't managed as a herd the way Deer/Elk/Pronghorn are -- no DAU
+// population survey exists, so there's nothing to drive the usual
+// population/sex-ratio chart. What's available instead: primary-draw tag
+// quotas and harvest totals, both summed by GMU (see sql/schema.sql's
+// GmuTagsHarvest comment and scripts/import_gmu_tags_harvest.js).
+//
+// Caveat surfaced to the frontend as-is, not hidden: TagQuota is keyed
+// by the hunt code's own embedded unit number, but several bear hunt
+// codes bundle multiple physical GMUs under one code (e.g. GMUs 5 and 6
+// have no hunt code of their own -- they're hunted under code 004's
+// license), while Harvest is reported at the true per-GMU level. So a
+// GMU can show harvest with no matching tags bar (hunted under a
+// different unit's code) -- this isn't a data gap, it's the real
+// resolution mismatch between how tags and harvest are tracked.
+app.get("/api/bear-gmu-stats", (req, res) => {
+    try {
+        const rows = db.prepare(`
+            SELECT SeasonYear AS seasonYear, GMU AS gmu, TagQuota AS tagQuota, Harvest AS harvest
+            FROM GmuTagsHarvest
+            WHERE Species = 'bear'
+            ORDER BY GMU, SeasonYear
+        `).all();
+        res.json({ success: true, data: rows });
+    } catch (err) {
+        console.error("GET /api/bear-gmu-stats error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Hunt Notes API listening on port ${PORT}`);
 });

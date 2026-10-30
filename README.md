@@ -415,6 +415,104 @@ it to the fuller picture would mean also parsing a secondary-draw
 report and a leftover/OTC sales source, neither of which exists in
 `Docs/` yet.
 
+## Updating GMU Tags vs Harvest data (Bear)
+
+Bear isn't managed as a herd the way Deer/Elk/Pronghorn are -- CPW
+doesn't publish a "Post Hunt Population & Sex Ratio Estimates" report
+for it, so there's no DAU, no population estimate, and nothing to put
+in `HerdPopulationEstimates`. What *is* available: primary-draw tag
+quota and harvest totals, both summed by **GMU** instead of DAU, in a
+separate species-generic table (`GmuTagsHarvest`, built that way from
+the start since `HerdPopulationEstimates` already had to be
+generalized once -- see its own comment in `sql/schema.sql`). The Herd
+tab's Bear species tab renders a different view than Deer/Elk/
+Pronghorn's for this reason: a GMU sidebar instead of a DAU sidebar,
+and a Tag Quota vs Harvest bar chart instead of a population/sex-ratio
+pair.
+
+**Two harvest report formats exist across the years CPW has published,
+and this app's importer handles both:**
+- 2019-2021, 2023-2024: "Bear Harvest, Hunters and Recreation Days for
+  All Manners of Take" -- already summed by GMU/"Unit" (every hunt code
+  and method combined), parsed by
+  `Docs/extraction/parse_bear_harvest_by_gmu.py`. This report's "Total
+  Hunters" and "Percent Success" columns print as headers but are
+  blank in every year seen -- not a parsing gap, the report just never
+  carried that data; only Boars/Sows/Harvest/Rec Days are populated.
+  **get_text() scrambles this report's row order** -- every 5th unit's
+  row (005, 010, 015, ...) is emitted first in the text stream, ahead
+  of the title and the rest of the table. The actual table layout is
+  still intact in each word's (x, y) coordinates, though, so this
+  parser reconstructs rows from `page.get_text("words")` instead of
+  trusting extraction order: column membership by nearest x-anchor
+  (derived from that page's own header row, not hardcoded, so minor
+  position drift between years doesn't break it), row membership by
+  exact y (rows are programmatically laid out, so same-row words share
+  the identical float y value). This cost real debugging time before
+  being traced to extraction order rather than a data problem --
+  worth remembering if a future per-GMU report looks similarly
+  scrambled.
+- 2025 (and presumably later): "Bear Harvest, Hunters, and Recreation
+  Days **by Hunt Code**" -- the same per-hunt-code format
+  `parse_bear_harvest.py` already handled for Draw Odds, summed by GMU
+  (decoded from each hunt code) at import time instead of coming
+  pre-summed.
+- **2022's per-GMU report has the same unextractable Type3 font issue
+  seen in every other species' 2022 edition** -- `page.get_text()`
+  comes back as garbage. Unlike the single-page population reports,
+  this one is ~23 pages covering ~124 GMU/sub-unit rows -- hand-
+  transcribing that much was judged not worth it for this feature, so
+  **2022 Bear harvest is simply not in the data**. Revisit if it turns
+  out to matter; the page-image-transcription approach that worked for
+  2022 population reports would still work here, just at much higher
+  volume.
+
+**Tags and harvest are genuinely different resolutions, not a bug to
+fix:** `TagQuota` is summed by the GMU number embedded in the hunt
+code itself (same `gmuFromHuntCode()` decode used everywhere else in
+this app), but several bear hunt codes bundle more than one physical
+GMU under a single code -- e.g. there's no `BE005` or `BE006` hunt
+code at all, because GMUs 5 and 6 are both hunted under `BE004`'s
+license. Harvest, by contrast, is reported per actual GMU a bear was
+taken in, which is the finer of the two. The result: many GMUs show
+harvest with no matching `TagQuota` bar, which doesn't mean tags data
+is missing for that GMU -- it means that GMU is hunted under a
+*different* GMU's hunt code, and that code's quota is attributed there
+instead. Reconciling this fully would need a hunt-code-to-GMU-list
+mapping (the kind the Deer/Elk/Pronghorn big-game brochure's hunt-code
+tables likely have, per its own "The valid GMUs column..." text) which
+hasn't been extracted from the brochure yet -- the brochure's hunt-code
+tables are absolute-positioned text requiring the same kind of
+coordinate parsing as `parse_deer_recap.py`, not something this pass
+took on. The Herd tab surfaces this caveat directly in its Bear
+description rather than hiding the mismatch.
+
+To add a year:
+
+1. Drop the harvest and/or draw-recap PDF in `Docs/Bear/`.
+2. For harvest, check which report format it is (page 1's title says
+   "...for All Manners of Take" or "...by Hunt Code") and run the
+   matching parser:
+   - Per-GMU: `python Docs/extraction/parse_bear_harvest_by_gmu.py
+     "Docs/Bear/<file>.pdf" <year>
+     Docs/extraction/harvest_bear_gmu_<year>.jsonl`
+   - Per-hunt-code: `python Docs/extraction/parse_bear_harvest.py
+     "Docs/Bear/<file>.pdf" <year>
+     Docs/extraction/harvest_bear_<year>.jsonl`
+   - If `page.get_text()` comes back garbled (2022-style), either hand-
+     transcribe (expect ~23 pages for the per-GMU format) or skip the
+     year, same tradeoff made for 2022.
+3. For tag quota: `python Docs/extraction/parse_deer_recap.py
+   "Docs/Bear/<file>.pdf" bear primary <year>
+   Docs/extraction/draw_points_bear_primary_<year>.jsonl`
+4. Add the year to the relevant list(s) in `SPECIES_YEARS` inside
+   `scripts/import_gmu_tags_harvest.js` (tags and harvest years don't
+   have to match -- each is imported independently, and either field
+   can be null for a GMU/year with no source for it), then `node
+   scripts/import_gmu_tags_harvest.js` -- idempotent, upserts on
+   (SeasonYear, Species, GMU), never overwrites one field based on the
+   other being absent.
+
 ## Design notes
 
 - **Draw dates are not per-species.** Colorado runs one unified

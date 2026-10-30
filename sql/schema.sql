@@ -344,3 +344,35 @@ CREATE TABLE IF NOT EXISTS HerdPopulationEstimates (
 );
 
 CREATE INDEX IF NOT EXISTS idx_HerdPopulationEstimates_DAU ON HerdPopulationEstimates (Species, DAU);
+
+-- GMU-level tags-vs-harvest, for species with no herd/DAU population
+-- survey (currently just Bear -- it isn't managed as a herd the way
+-- Deer/Elk/Pronghorn are, so there's no "Post Hunt Population & Sex
+-- Ratio Estimates" report to key a HerdPopulationEstimates row off of).
+-- Species-generic from the start -- HerdPopulationEstimates started
+-- Deer-only and had to be generalized later once Elk showed up; no
+-- reason to repeat that mistake now that the pattern's visible.
+--
+-- TagQuota: primary-draw hunt-code quotas, summed by GMU -- same
+-- source/caveats as HerdPopulationEstimates.TagQuota (primary draw
+-- only, so undercounts total tags for GMUs with meaningful secondary/
+-- leftover volume).
+-- Harvest: total harvest, summed by GMU, from whichever of CPW's two
+-- harvest report formats that year used -- the per-GMU "for All Manners
+-- of Take" report (sums are already done for us) or the per-hunt-code
+-- "by Hunt Code" report (summed here by GMU) -- see README's "Updating
+-- GMU Tags vs Harvest data" section.
+-- Either field may be null independently -- a GMU can have a completed
+-- draw with no harvest report yet (current season in progress), or a
+-- harvest report for a year with no draw-recap PDF collected.
+CREATE TABLE IF NOT EXISTS GmuTagsHarvest (
+    GmuTagsHarvestID INTEGER PRIMARY KEY,
+    SeasonYear  INTEGER NOT NULL,
+    Species     TEXT NOT NULL CHECK (Species IN ('bear')),
+    GMU         INTEGER NOT NULL,
+    TagQuota  INTEGER,
+    Harvest     INTEGER,
+    UNIQUE (SeasonYear, Species, GMU)
+);
+
+CREATE INDEX IF NOT EXISTS idx_GmuTagsHarvest_Species ON GmuTagsHarvest (Species, GMU);
